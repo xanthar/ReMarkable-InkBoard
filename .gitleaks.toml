@@ -1,0 +1,4 @@
+# gitleaks config for inkboard. The CI gitleaks job is fail-closed; any exception lives here,
+# never as continue-on-error. No exceptions yet.
+[extend]
+useDefault = true

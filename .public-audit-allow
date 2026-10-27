@@ -1,0 +1,10 @@
+# Deliberate exceptions for the pre-public audit: path_glob | rule | reason
+# A finding is allowed only when its file matches path_glob AND its rule matches (or rule is *).
+src/inkboard/core/config.py | private-ipv4 | the reMarkable 2's USB link network, the same on every tablet
+src/inkboard/services/link.py | private-ipv4 | the reMarkable 2's USB address, the same on every tablet
+CODE_OF_CONDUCT.md | denylist | the maintainer's chosen public contact address
+SECURITY.md | denylist | the maintainer's chosen public contact address
+CODE_OF_CONDUCT.md | git-email | the maintainer's chosen public contact address
+SECURITY.md | git-email | the maintainer's chosen public contact address
+tests/test_discovery.py | mac-literal | the all-ones broadcast address in a Windows arp sample, not a device
+docs/operations/device-setup.md | home-path | the root user's home folder on the tablet, the same on every reMarkable

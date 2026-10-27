@@ -1,0 +1,36 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Secrets and keys
+*.key
+*.pem
+*secret*
+*credential*
+id_rsa*
+id_ecdsa*
+id_ed25519*
+
+# Local only: your settings, your agent instructions, your planning notes. Never published.
+.env
+CLAUDE.local.md
+*.local.md
+.claude/settings.local.json
+.claude/*.local.*
+docs/analysis/
+
+# Raw pen captures from your tablet are handwriting: never committed.
+# (tests/fixtures/rm2-sample.bin is a deliberate, non-personal sample; see tests/fixtures/README.md.)
+recordings/
+
+# Operating system noise
+.DS_Store
+Thumbs.db

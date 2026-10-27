@@ -1,0 +1,18 @@
+# inkboard: SSH over Wi-Fi without password login, for the reMarkable 2.
+# A copy of /usr/lib/systemd/system/dropbear@.service and its drop-in
+# override-dropbear@.service.conf (firmware 3.29.0.153), with -s added (no password login).
+# Installed as /etc/systemd/system/dropbear-wlan@.service it replaces the dropbear-wlan@ alias for
+# Wi-Fi only, so USB keeps password login. A firmware update removes it; install it again then.
+# See docs/operations/device-setup.md, D3b.
+[Unit]
+Description=SSH Per-Connection Server (Wi-Fi, no password login)
+Wants=dropbearkey.service
+After=syslog.target dropbearkey.service dropbearkey-run-fallback.service
+
+[Service]
+Environment="DROPBEAR_ED25519KEY_DIR=/etc/dropbear"
+EnvironmentFile=-/etc/default/dropbear
+ExecStart=-/usr/sbin/dropbear -G root -i -r ${DROPBEAR_ED25519KEY_DIR}/dropbear_ed25519_host_key -s $DROPBEAR_EXTRA_ARGS
+ExecReload=/bin/kill -HUP $MAINPID
+StandardInput=socket
+KillMode=process

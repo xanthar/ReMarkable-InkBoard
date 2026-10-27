@@ -1,0 +1,88 @@
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[project]
+name = "inkboard"
+version = "0.1.0"
+description = "Live drawing board for the reMarkable 2: pen strokes and the tablet's screen in your browser, over USB or Wi-Fi"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "xanthar" }]
+keywords = ["remarkable", "remarkable-2", "drawing", "sketch", "whiteboard", "ssh", "fastapi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Capture",
+]
+requires-python = ">=3.13"
+dependencies = [
+    "anyio>=4.0",
+    "fastapi>=0.162",
+    # Floor above the six known CVEs in starlette < 1.0.1.
+    "starlette>=1.0.1",
+    "uvicorn>=0.54",
+    # uvicorn has no WebSocket support of its own; without this the live page cannot connect.
+    "websockets>=17.3",
+    "structlog>=26.1",
+    "pydantic-settings>=2.16",
+]
+
+[project.scripts]
+inkboard = "inkboard.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/xanthar/ReMarkable-InkBoard"
+Issues = "https://github.com/xanthar/ReMarkable-InkBoard/issues"
+Changelog = "https://github.com/xanthar/ReMarkable-InkBoard/blob/main/CHANGELOG.md"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["inkboard"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+disallow_untyped_defs = true
+mypy_path = "src"
+packages = ["inkboard"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/inkboard"]
+
+[tool.bandit]
+exclude_dirs = [".venv", "tests"]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    # starlette.testclient prefers httpx2 and warns that plain httpx is deprecated.
+    "httpx2>=2.16",
+    "mypy>=2.4.0",
+    "pip-audit>=2.10.1",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.0",
+    "ruff>=0.16.10",
+]
+
+[tool.uv]
+# A floor, so any recent uv works; CI pins the exact uv in its setup-uv step.
+required-version = ">=0.12.2"

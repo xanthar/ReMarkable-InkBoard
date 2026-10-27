@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>inkboard</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body data-board="sketch">
+<header class="bar">
+  <h1 class="brand">ink<span class="brand-accent">board</span></h1>
+  <div class="switch" role="group" aria-label="What the page shows">
+    <button id="board-sketch" class="btn btn-switch" type="button" aria-pressed="true" title="Pen strokes, live">Sketch</button>
+    <button id="board-screen" class="btn btn-switch" type="button" aria-pressed="false" title="The tablet's own screen, erasing included">Screen</button>
+  </div>
+  <p id="status" class="chip" data-state="offline" role="status" aria-live="polite">
+    <span class="chip-glyph" aria-hidden="true">○</span>
+    <span class="chip-text">Starting…</span>
+  </p>
+  <div class="readout">
+    <p id="count" class="count sketch-only">0 strokes</p>
+    <p id="frame-state" class="frame-state screen-only" aria-live="off"><span class="frame-glyph" aria-hidden="true">○</span><span class="frame-text">No screen frame yet</span></p>
+  </div>
+  <button id="refresh" class="btn screen-only" type="button" title="Fetch the tablet's screen now (after a page turn or a menu)">Refresh</button>
+  <div class="actions">
+    <p id="notice" class="notice" role="status" aria-live="polite"><span class="notice-glyph" aria-hidden="true"></span><span class="notice-text"></span></p>
+    <button id="rotate" class="btn btn-rotate" type="button">Vertical</button>
+    <label class="check screen-only" title="Include the tablet's menu in Copy image and Save PNG"><input id="copy-menu" type="checkbox"> Copy menu</label>
+    <button id="copy" class="btn" type="button" disabled>Copy image</button>
+    <button id="save" class="btn" type="button" disabled>Save PNG</button>
+    <button id="clear" class="btn sketch-only" type="button">Clear</button>
+    <span id="confirm" class="confirm" hidden>
+      <span class="confirm-text">Clear the page? There is no undo.</span>
+      <button id="confirm-yes" class="btn btn-danger" type="button">Clear page</button>
+      <button id="confirm-no" class="btn" type="button">Keep</button>
+    </span>
+  </div>
+</header>
+<main class="stage">
+  <div id="sheet" class="card sheet">
+    <canvas id="board" role="img" aria-label="Drawing board with 0 strokes"></canvas>
+    <canvas id="frame-board" role="img" aria-label="Tablet screen, no frame yet" hidden></canvas>
+  </div>
+</main>
+<footer class="foot">
+  <p>Draw on the reMarkable. Sketch shows your strokes live; Screen shows the tablet's own screen, erasing included, a moment after you lift the pen. Use Vertical for the tablet in portrait mode and Horizontal for landscape mode. Copy image puts what is showing on the clipboard for an agent chat.</p>
+</footer>
+</body>
+</html>

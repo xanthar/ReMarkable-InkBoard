@@ -1,0 +1,347 @@
+/* inkboard - dark theme with a lime accent, dark-only.
+   System fonts only: the page loads nothing from the internet (strict CSP). */
+
+:root {
+    /* Backgrounds */
+    --bg-void: #050709;
+    --bg-primary: #0d1117;
+    --bg-tertiary: #21262d;
+    --bg-hover: #30363d;
+
+    /* Text */
+    --text-primary: #f0f6fc;
+    --text-secondary: #b1bac4;
+    --text-muted: #7d8590;
+
+    /* Accent */
+    --accent-primary: #a3e635;
+    --accent-glow: rgba(163, 230, 53, 0.4);
+    --accent-subtle: rgba(163, 230, 53, 0.08);
+    --accent-border: rgba(163, 230, 53, 0.15);
+
+    /* Borders and shadows */
+    --border-primary: #30363d;
+    --border-glow: rgba(163, 230, 53, 0.3);
+    --shadow-lg: 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+    --shadow-glow-sm: 0 0 10px rgba(163, 230, 53, 0.2);
+
+    /* Spacing, radius */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-full: 9999px;
+
+    /* Typography (system fallbacks when the fonts are not installed) */
+    --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    --font-body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', Consolas, ui-monospace, monospace;
+
+    /* Timing */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Semantic */
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+
+    /* Drawing */
+    --ink: #f0f6fc;
+    --paper: #161b22;
+
+    /* Image export (Copy image / Save PNG). Sketch: black ink on opaque white, as in print.
+       Screen: the tablet's image as is; with Copy menu off, the menu is painted this paper white. */
+    --export-ink: #111111;
+    --export-paper: #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--bg-void); height: 100%; }
+
+body {
+    margin: 0;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Radial green glow from the top */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(163, 230, 53, 0.05), transparent 50%),
+        linear-gradient(180deg, var(--bg-void) 0%, var(--bg-primary) 30%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Faint green grid */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(163, 230, 53, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(163, 230, 53, 0.025) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, black 20%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, black 20%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+}
+
+.bar, .stage, .foot { position: relative; z-index: 1; }
+
+/* Header */
+.bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-lg);
+    border-bottom: 1px solid var(--border-primary);
+    background: rgba(13, 17, 23, 0.8);
+}
+
+.brand {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.brand-accent {
+    color: var(--accent-primary);
+    text-shadow: 0 0 12px var(--accent-glow);
+}
+
+.count {
+    margin: 0;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+}
+
+.actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+
+/* Sketch | Screen switch: the pressed one carries the accent */
+.switch { display: inline-flex; }
+.switch .btn-switch { border-radius: 0; }
+.switch .btn-switch:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.switch .btn-switch:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
+.btn-switch[aria-pressed="true"] {
+    color: var(--accent-primary);
+    border-color: var(--border-glow);
+    background: var(--accent-subtle);
+}
+
+/* Controls for one board only keep their slot on the other, so the header never reflows */
+body[data-board="sketch"] .screen-only,
+body[data-board="screen"] .sketch-only { visibility: hidden; }
+
+/* The stroke count and the screen frame state share one slot */
+.readout { display: grid; }
+.readout > * { grid-area: 1 / 1; }
+
+.frame-state {
+    margin: 0;
+    display: inline-flex;
+    gap: var(--space-xs);
+    min-width: 24ch;
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+}
+
+.frame-state[data-state="ready"] .frame-glyph { color: var(--accent-primary); }
+.frame-state[data-state="updating"] .frame-glyph { color: var(--color-warning); }
+/* An error dims, never glows */
+.frame-state[data-state="error"] { color: var(--text-muted); }
+.frame-state[data-state="error"] .frame-glyph { color: var(--color-danger); }
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.check input { accent-color: var(--accent-primary); margin: 0; }
+.confirm { display: inline-flex; align-items: center; gap: var(--space-sm); }
+.confirm[hidden] { display: none; }
+.confirm-text { color: var(--color-warning); font-size: 0.875rem; }
+
+/* Export notice: a fixed slot that is never hidden, so the header does not reflow */
+.notice {
+    margin: 0;
+    min-width: 30ch;
+    display: inline-flex;
+    justify-content: flex-end;
+    gap: var(--space-xs);
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.notice[data-kind="ok"] { color: var(--accent-primary); }
+.notice[data-kind="fail"] { color: var(--text-muted); }
+.notice[data-kind="fail"] .notice-glyph { color: var(--color-danger); }
+
+/* Status chip: colour + glyph + text, never hue alone */
+.chip {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 2px 10px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-primary);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    max-width: 60ch;
+}
+
+.chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.chip[data-state="connected"] {
+    color: var(--accent-primary);
+    border-color: var(--border-glow);
+    background: var(--accent-subtle);
+    box-shadow: var(--shadow-glow-sm);
+}
+
+.chip[data-state="connecting"] {
+    color: var(--color-warning);
+    border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* Error and stale states dim, never glow */
+.chip[data-state="down"],
+.chip[data-state="offline"] {
+    color: var(--text-muted);
+    border-color: var(--border-primary);
+    background: transparent;
+    box-shadow: none;
+}
+
+.chip[data-state="down"] .chip-glyph { color: var(--color-danger); }
+
+/* Buttons */
+.btn {
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: 4px 14px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn:not(:disabled):hover { border-color: var(--border-glow); box-shadow: var(--shadow-glow-sm); }
+.btn:not(:disabled):active { background: var(--bg-hover); }
+.btn:disabled { color: var(--text-muted); cursor: not-allowed; box-shadow: none; }
+.btn-danger { color: var(--color-danger); }
+.btn-rotate::before { content: '⟳ '; color: var(--accent-primary); }
+
+:focus-visible {
+    outline: none;
+    border-color: rgba(163, 230, 53, 0.5);
+    box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.15);
+}
+
+::selection { background: rgba(163, 230, 53, 0.3); color: var(--text-primary); }
+
+/* Stage: the 3:4 portrait sheet, letterboxed */
+.stage {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md);
+}
+
+.card {
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+/* Card top highlight */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-border), rgba(163, 230, 53, 0.35), var(--accent-border), transparent);
+}
+
+.sheet { display: flex; }
+#board, #frame-board { display: block; }
+/* An id selector beats the browser's own [hidden] rule, so restate it */
+#board[hidden], #frame-board[hidden] { display: none; }
+/* The last good frame stays visible after an error, dimmed */
+#frame-board.stale { opacity: 0.45; }
+
+.foot {
+    padding: 0 var(--space-lg) var(--space-sm);
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+    text-align: center;
+}
+
+.foot p { margin: 0; }
+
+/* Motion only when allowed: a slow pulse on the connected glyph */
+@media (prefers-reduced-motion: no-preference) {
+    .chip[data-state="connected"] .chip-glyph { animation: pulse 2.4s ease-in-out infinite; }
+    .chip[data-state="connecting"] .chip-glyph { animation: pulse 1.2s ease-in-out infinite; }
+    .frame-state[data-state="updating"] .frame-glyph { animation: pulse 1.2s ease-in-out infinite; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print: black ink on white, no chrome or effects */
+@media print {
+    body { background: white; color: black; }
+    body::before, body::after, .bar, .foot { display: none; }
+    .card { border: none; box-shadow: none; background: white; }
+    .card::before { display: none; }
+    #board { filter: invert(1); }
+    #frame-board, #frame-board.stale { filter: none; opacity: 1; }  /* the tablet screen is already dark on white */
+}

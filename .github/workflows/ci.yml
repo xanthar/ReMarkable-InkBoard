@@ -1,0 +1,149 @@
+name: CI
+
+# Every gate on every branch push and pull request. inkboard has no build or deploy job: it runs
+# on the user's own PC. Actions are pinned to commit SHAs; Dependabot keeps them current.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.2"
+      # --locked, never --frozen: --frozen would install a stale lock without a word.
+      - run: uv sync --locked
+      - name: Ruff format
+        run: uv run --no-sync ruff format --check .
+      - name: Ruff lint
+        run: uv run --no-sync ruff check .
+      - name: Page script syntax
+        run: node --check src/inkboard/static/app.js
+      # Local-only files hold one person's settings and instructions; they must never be tracked.
+      - name: No local overlay files tracked
+        shell: bash
+        run: |
+          if git ls-files -- .env CLAUDE.local.md '*.local.md' '.claude/settings.local.json' | grep .; then
+            echo "a local-only file is tracked"; exit 1
+          fi
+
+  mypy:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.2"
+      - run: uv sync --locked
+      - run: uv run --no-sync mypy src/ scripts/
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.2"
+      - run: uv sync --locked
+      # The floor only ever ratchets up.
+      - run: uv run --no-sync pytest -q --maxfail=1 --cov=inkboard --cov-fail-under=98
+
+  test-windows:
+    # inkboard is used on Windows (its OpenSSH client, its network commands): run the suite there too.
+    needs: lint
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.2"
+      - run: uv sync --locked
+      - run: uv run --no-sync pytest -q --maxfail=1
+
+  security:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.2"
+      - run: uv sync --locked
+      - name: Bandit
+        run: uv run --no-sync bandit -c pyproject.toml -r src/ scripts/ -ll -ii
+      - name: pip-audit
+        run: uv run --no-sync pip-audit
+      # The lock itself, hash-checked, so an advisory on any locked package fails CI.
+      - name: Lock audit
+        run: |
+          uv export --locked --format requirements-txt --no-emit-project -q -o lock-export.txt
+          uv run --no-sync pip-audit -r lock-export.txt --require-hashes --disable-pip
+
+  osv-scanner:
+    # Lockfile-scoped. The binary is pinned to its release SHA-256 (osv-scanner_SHA256SUMS, v2.7.0).
+    runs-on: ubuntu-latest
+    env:
+      OSV_VERSION: "2.7.0"
+      OSV_SHA256: "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Install osv-scanner
+        run: |
+          curl -sSfL -o osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SHA256}  osv-scanner" | sha256sum --check --strict
+          chmod +x osv-scanner
+      # A zero exit is not proof the scanner ran: require its own "Scanned ... uv.lock" line too.
+      - name: osv-scanner (uv.lock)
+        shell: bash
+        run: |
+          set -o pipefail
+          ./osv-scanner scan source --lockfile uv.lock 2>&1 | tee osv-output.txt
+          grep -Eq "Scanned .*uv\.lock" osv-output.txt
+
+  gitleaks:
+    # The release binary, pinned to its version and SHA-256 (v8.30.1 checksums file). Fail-closed.
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$tarball" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
+          echo "${GITLEAKS_SHA256}  ${tarball}" | sha256sum --check --strict
+          tar -xzf "$tarball" gitleaks
+      - name: gitleaks (full history)
+        run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner
