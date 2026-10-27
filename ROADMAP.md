@@ -31,7 +31,7 @@ recording, saved from the page, can pin that.
 
 - **Pen marker.** The digitizer reports the pen's position while it hovers just above the glass.
   Show it as a dot on the page, with a toggle; most useful in the Screen view, which lags the
-  tablet by about two seconds. The drawing and the exported image do not change.
+  tablet by a second or two. The drawing and the exported image do not change.
 
 ## Parked
 

@@ -8,7 +8,7 @@
 
 inkboard must stream the reMarkable 2's pen events (`/dev/input/event1`, 16-byte
 `input_event` frames) to a Python service on a Windows PC with low latency. The tablet offers
-root SSH over USB (`10.11.99.1`) and, depending on firmware, over Wi‑Fi. (The same client now
+root SSH over USB (`10.11.99.1`) and, depending on firmware, over Wi-Fi. (The same client now
 runs over either link, chosen per connection: ADR 0003.)
 
 Options considered:
@@ -43,5 +43,5 @@ through `call_soon_threadsafe`.
   the tablet until the next pen movement — longer when the connection broke while the tablet
   slept. It only reads the pen node, which several readers can share.
 - Key login must work without prompts (`BatchMode=yes`): a key without a passphrase scoped to
-  the tablet's host block, or a passphrase key loaded into the SSH agent. Over Wi‑Fi the host key
+  the tablet's host block, or a passphrase key loaded into the SSH agent. Over Wi-Fi the host key
   is checked before that key is offered (ADR 0003).

@@ -47,6 +47,14 @@ gitleaks git . --config .gitleaks.toml --redact --no-banner
 CI also runs the tests on Windows, osv-scanner on the lock file and, on the public repository,
 CodeQL. Coverage stays at or above 98%; the floor only ever goes up.
 
+`ruff format --check .` also checks the Python code blocks inside Markdown files (for example the
+D7 script in the runbook), so a documentation-only change can fail it. Run `uv run ruff format .`
+after you edit one.
+
+`.public-audit-allow` lists the deliberate exceptions for the maintainer's pre-publication privacy
+check (for example the tablet's fixed USB address, which is the same on every reMarkable 2). Add a
+line there only for a value that is the same for everyone, never for a personal one.
+
 ## Tests
 
 The tests need no tablet and no network. A fake device (`tests/fake_device.py`) stands in for SSH,

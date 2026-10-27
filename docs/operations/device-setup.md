@@ -9,7 +9,9 @@ Two rules run through it:
 
 - **Every change on the tablet is a deliberate step you take yourself**, never something a script
   does on its own: the commands that write to the tablet are marked as such.
-- **Take a full verified backup (D8) before any change on the tablet.**
+- **Take a full verified backup (D8) before any change on the tablet after D3.** D3 only appends
+  your key to `authorized_keys` (the Rollback removes it), and the backup script logs in with that
+  key, so D8 comes right after D3 and before D3b.
 
 Use the Windows OpenSSH client for every step (`C:\Windows\System32\OpenSSH\…`): Git's ssh is often
 also on PATH, and it behaves differently.
@@ -32,17 +34,23 @@ the pen values on yours.
 | Screen memory | xochitl keeps the screen in the anonymous map right after `/dev/fb0` in `/proc/<pid>/maps`; the frame starts **2,629,640** bytes in (3.24.0.149 and 3.29.0.153) |
 | Screen frame | 1404 × 1872 BGRA, portrait, alpha 255 on every pixel; colour on 3.29; in landscape mode the UI is drawn turned inside the same portrait frame |
 | Screen grab | SSH connect 0.44–0.60 s; one frame with `gzip -1` about 0.8–1.0 s over USB and 0.87–1.04 s over Wi-Fi; a blank page is 11–16 KB on the wire |
-| Screen layouts | right-handed toolbar: round button at (36, 36) portrait / (36, 1796) landscape, close X at (1328, 36) portrait / (36, 36) landscape, strip x 0–112 portrait / y 1760–1872 landscape (frame pixels) |
-| Link switch | cable out to Wi-Fi in about 2 s; cable in back to USB within a second of Windows bringing the cable network up (which can take up to about 30 s) |
+| Screen layouts | right-handed toolbar: round button at (36, 36) portrait / (36, 1796) landscape, close X at (1328, 36) portrait / (36, 36) landscape, strip x 0–112 portrait / y 1760–1872 landscape (frame pixels; Copy menu paints x 0–116 / y 1756–1872) |
+| Link switch | cable out to Wi-Fi in about 2 s; cable in back to USB within a second of Windows bringing the cable network up (which can take up to about 30 s); ping over Wi-Fi averages about 16 ms with spikes of a few hundred ms |
 | eMMC | `mmcblk2` 7.65 GB (p1 vfat, p2 the running root, p3 the inactive root, p4 `/home`) plus `mmcblk2boot0` and `mmcblk2boot1`, 2 MB each; a full backup (D8) takes about 9 minutes and 440 MB |
 | busybox | `pidof` has no `-s`; shell arithmetic is 64-bit; `gzip` present |
 
 These values are the defaults in `src/inkboard/core/config.py`, `services/screen.py`
-(`FRAME_OFFSET`, `SUPPORTED_FIRMWARE`, `LAYOUTS`) and `static/app.js`.
+(`FRAME_OFFSET`, `SUPPORTED_FIRMWARE`, `LAYOUTS`), `services/demo.py` (which takes its
+orientation from the settings default) and `static/app.js`.
 
 ## D0 — prepare
 
-- Charge and boot the tablet, and note the firmware version (Settings → General → About).
+- Charge and boot the tablet, and note the firmware version (**Menu → Settings → Software →
+  Version**; over SSH, `REMARKABLE_RELEASE_VERSION` in `/usr/share/remarkable/update.conf`).
+- Decide how the tablet updates. It updates itself by default, and an update can change the host
+  key, the screen offset and the Wi-Fi password setting (see "After a tablet firmware update"). To
+  update only when you have time for those checks, turn automatic updates off on the same Version
+  screen.
 - Open a **new blank notebook**: the tablet's own app records every stroke into the open page.
 
 ## D1 — reachability over USB
@@ -60,9 +68,9 @@ Get-NetAdapter | Where-Object InterfaceDescription -like '*RNDIS*'
 
 ## D2 — first login and host key
 
-The root password is on the tablet under Settings → Help → Copyrights and licenses. Accept the host
-key when asked; it is stored under the name `remarkable`, which every later connection is checked
-against:
+The root password is on the tablet under Menu → Settings → Help → Copyrights and licenses, near
+the bottom of that page. Accept the host key when asked; it is stored under the name `remarkable`,
+which every later connection is checked against:
 
 ```powershell
 C:\Windows\System32\OpenSSH\ssh.exe -o HostKeyAlias=remarkable root@10.11.99.1 "uname -a; cat /proc/bus/input/devices"
@@ -140,8 +148,11 @@ tablet's address and the host-key options in its own command line (ADR 0003).
 
 **How the firmware does it.** `/usr/bin/rm-ssh-over-wlan on|off` creates or deletes the marker file
 `/home/root/.config/remarkable/rm_enable_ssh_wifi_marker` and restarts `dropbear-wlan.socket`,
-which listens on port 22 on `wlan0` only while the marker exists. Without an argument the script
-prints its help.
+which listens on port 22 on `wlan0` only while the marker exists (`BindToDevice=wlan0`). Without an
+argument the script prints its help. The socket has a second condition, from a drop-in named
+`override-mdm.conf`: a file named `rm_disable_ssh` must not exist. A tablet managed by an
+organisation (MDM) can have SSH turned off that way, and then D3b does not work;
+`systemctl cat dropbear-wlan.socket` shows both conditions.
 
 **Turn password login off for Wi-Fi first.** By default the Wi-Fi listener accepts the root
 password. `dropbear-wlan@`, `dropbear-usb0@` and `dropbear-usb1@` are all aliases of one template,
@@ -150,7 +161,8 @@ too and take away the password login you need as a way back in. Instead, a real 
 `dropbear-wlan@.service` in `/etc/systemd/system` replaces the alias for Wi-Fi alone. It ships in
 this repository as [`contrib/dropbear-wlan@.service`](../../contrib/dropbear-wlan@.service) (written
 for firmware 3.29; on another firmware compare it with `systemctl cat dropbear@.service` first and
-copy that `ExecStart` with `-s` added).
+copy that `ExecStart` with `-s` added). If you edit it, keep LF line endings, and install it with
+`scp` as below, never by pasting it into an ssh command.
 
 1. **Install the unit file** (writes to the tablet):
 
@@ -171,24 +183,30 @@ copy that `ExecStart` with `-s` added).
    why before going on.
 
 3. **Turn SSH over Wi-Fi on** (writes to the tablet), then check the port at the tablet's Wi-Fi
-   address (shown by your router, or by `ip -4 addr show wlan0` on the tablet):
+   address. The tablet must be on the same Wi-Fi as the PC first: on the tablet, **Menu →
+   Settings → Wi-Fi**, pick the network and enter its password (networks with a sign-in page do
+   not work). Your router shows the tablet's address, or the third command asks the tablet over
+   the cable:
 
    ```powershell
    C:\Windows\System32\OpenSSH\ssh.exe -o BatchMode=yes remarkable 'rm-ssh-over-wlan on'
    Test-NetConnection <tablet address> -Port 22
+   C:\Windows\System32\OpenSSH\ssh.exe -o BatchMode=yes remarkable 'ip -4 addr show wlan0'
    ```
 
 4. **Prove the result** (reads only). Key login over Wi-Fi prints `inkboard-ok`; a password is
    refused over Wi-Fi (`Permission denied (publickey).`) and still offered over USB
-   (`Permission denied (publickey,password).`); `known_hosts` is unchanged:
+   (`Permission denied (publickey,password).`); `known_hosts` is unchanged (the last line prints
+   `True`):
 
    ```powershell
    $ssh = 'C:\Windows\System32\OpenSSH\ssh.exe'
    $opts = @('-o','BatchMode=yes','-o','HostKeyAlias=remarkable','-o','StrictHostKeyChecking=yes','-o','CheckHostIP=no','-o','UpdateHostKeys=no')
+   $before = (Get-FileHash $env:USERPROFILE\.ssh\known_hosts -Algorithm SHA256).Hash
    & $ssh @opts -o HostName=<tablet address> remarkable 'echo inkboard-ok'
-   & $ssh -o BatchMode=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o HostName=<tablet address> remarkable 'echo x'
-   & $ssh -o BatchMode=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o HostName=10.11.99.1 remarkable 'echo x'
-   (Get-FileHash $env:USERPROFILE\.ssh\known_hosts -Algorithm SHA256).Hash
+   & $ssh @opts -o PreferredAuthentications=password -o PubkeyAuthentication=no -o HostName=<tablet address> remarkable 'echo x'
+   & $ssh @opts -o PreferredAuthentications=password -o PubkeyAuthentication=no -o HostName=10.11.99.1 remarkable 'echo x'
+   (Get-FileHash $env:USERPROFILE\.ssh\known_hosts -Algorithm SHA256).Hash -eq $before
    ```
 
    With an empty `known_hosts` the same connection prints `Host key verification failed.`, and
@@ -201,8 +219,10 @@ copy that `ExecStart` with `-s` added).
    C:\Windows\System32\OpenSSH\ssh.exe -o BatchMode=yes remarkable 'cat /sys/class/net/wlan0/address'
    ```
 
-   Then set `INKBOARD_TABLET_MAC=<the address it printed>` in `.env` (see `.env.example`). A DHCP
-   reservation in your router keeps the tablet's address stable; inkboard does not need one.
+   Then, in `.env` (`Copy-Item .env.example .env` if you have none yet), remove the `#` in front
+   of `INKBOARD_TABLET_MAC` and put the address it printed after the `=`; a line that starts with
+   `#` is ignored. A DHCP reservation in your router keeps the tablet's address stable; inkboard
+   does not need one.
 
 **Off again:** `rm-ssh-over-wlan off`, then remove the unit file and run `systemctl daemon-reload`
 (see Rollback).
@@ -235,7 +255,11 @@ INKBOARD_ORIENTATION=swap_xy,flip_y
 If they differ from the defaults, put them in `.env`. If probe warns about values above the known
 ranges, stop: that is a different digitizer, not a calibration.
 
-Cross-check the decoder against the D2b capture:
+To change a default for everyone (a pull request with measurements from another tablet), edit
+`src/inkboard/core/config.py`. `services/demo.py` takes its orientation from that default, so
+regenerate the synthetic fixture afterwards: `uv run inkboard demo --out tests/fixtures/demo.bin`.
+
+Cross-check the decoder against the D2b capture (add `--event-size 24` if D2b needed `bs=24`):
 
 ```powershell
 uv run inkboard serve --source replay --replay recordings\raw-d2b.bin
@@ -246,8 +270,10 @@ uv run inkboard serve --source replay --replay recordings\raw-d2b.bin
 `tests/fixtures/rm2-sample.bin` is a recording with the tablet in portrait: a circle, a square and
 the word "inkboard" (11 strokes). `tests/test_rm2_sample.py` checks that it decodes and draws
 upright with the default orientation. A replacement must hold only those three things (it is
-committed) and its timestamps should be shifted to start at 1000 s, as the current one is
-(`tests/fixtures/README.md`):
+committed). `tests/test_rm2_sample.py` expects 11 strokes: if yours has another count, change that
+number, the count here and in `tests/fixtures/README.md` in the same pull request. The current
+file's timestamps were shifted to start at 1000 s so that it does not record when it was drawn;
+inkboard has no command for that, so say in the pull request whether yours is shifted:
 
 ```powershell
 uv run inkboard record --out tests/fixtures/rm2-sample.bin --seconds 30
@@ -268,8 +294,9 @@ Open `http://127.0.0.1:8000` and check:
   no output): `C:\Windows\System32\OpenSSH\ssh.exe remarkable "pidof dd"`. A Screen grab also runs
   `dd`, for under a second, and ends by itself.
 - (d) If writing visibly trails the pen, lower `INKBOARD_BATCH_MS`.
-- (e) **Horizontal view:** put the tablet in landscape mode, switch the page to Horizontal and
-  draw. If strokes come out upside down, flip `HORIZONTAL_CLOCKWISE` in `static/app.js`.
+- (e) **Horizontal view:** put the notebook in landscape mode (on the tablet: **Document
+  settings** in the toolbar, then **Set to landscape**), switch the page to Horizontal and draw.
+  If strokes come out upside down, flip `HORIZONTAL_CLOCKWISE` in `static/app.js`.
 - (f) **USB and Wi-Fi** (after D3b):
   1. Cable in: the chip shows **Connected · USB**; draw; Screen works.
   2. Unplug: Connecting → **Connected · Wi-Fi** with the tablet's address, within about 2 s; draw;
@@ -280,9 +307,12 @@ Open `http://127.0.0.1:8000` and check:
   6. On Wi-Fi, let the tablet sleep for a minute, then wake it: it reconnects by itself; the chip
      says `connection lost`, then `no answer (tablet asleep?)`.
   7. The search, with nothing remembered (needs `INKBOARD_TABLET_MAC`): stop `serve`, delete
-     `link.json` (README, Settings), cable out, start `serve`. The log shows `link.search …
+     `link.json` (README, "USB and Wi-Fi"), cable out, start `serve`. The log shows `link.search …
      found=1`. Windows usually still knows the tablet's address, so the answer often comes from
-     its neighbour cache without any search traffic.
+     its neighbour cache without any search traffic. To force a real sweep (several seconds on a
+     home network), first run `Remove-NetNeighbor -IPAddress <tablet address> -Confirm:$false` in
+     an elevated PowerShell, and start `serve` straight after: Windows relearns the tablet within
+     seconds.
   8. A dead address is skipped: choose an unused address on your network, check that
      `Test-NetConnection <unused address> -Port 22` fails, delete `link.json`, set
      `INKBOARD_WIFI_ADDRESSES=<unused address>,<tablet address>` in `.env`, and start `serve` with
@@ -294,11 +324,11 @@ Open `http://127.0.0.1:8000` and check:
 - (h) **Screen view:** blank notebook page, page on **Screen**. Draw a few shapes: a new picture
   about 2 s after each lift of the pen, none during one long stroke, the tablet's own ink smooth.
   Erase with the toolbar Eraser: Screen shows it. Save PNG in Screen and in Sketch: the drawing sits
-  in the same place. Turn the tablet to landscape and click Vertical → Horizontal: the picture
-  updates by itself. Unplug: with SSH over Wi-Fi on, the link moves to Wi-Fi and Screen fetches a
-  fresh picture; without it, the chip says Down and the last picture stays until you replug. Hide
-  the tab and draw: no grab until it is shown again. Copy image with Copy menu off: the tablet's
-  menu is painted white.
+  in the same place (within a few pixels). Turn the tablet to landscape and click Vertical →
+  Horizontal: the picture updates by itself. Unplug: with SSH over Wi-Fi on, the link moves to
+  Wi-Fi and Screen fetches a fresh picture; without it, the chip says Down and the last picture
+  stays until you replug. Hide the tab and draw: no grab until it is shown again. Copy image with
+  Copy menu off: the tablet's menu is painted white.
 
 ## D7 — screen offset and menu layouts after a firmware update
 
@@ -368,9 +398,11 @@ reads the tablet. Keep a **blank notebook page** open: the frame shows whatever 
 
 ## D8 — full tablet backup
 
-**Take one before every change on the tablet** (D3, D3b, anything written outside `/tmp`). One
-backup covers the changes made in the same sitting. Everything here only reads the tablet. Plug the
-cable in and keep the tablet awake for about ten minutes (tap the blank page now and then):
+**Take one before every change on the tablet after D3** (D3b, anything written outside `/tmp`); the
+script logs in with the key from D3, so it cannot run before it. One backup covers the changes made
+in the same sitting; a change on a later day gets a new backup. Everything here only reads the
+tablet. Plug the cable in and keep the tablet awake for about ten minutes (tap the blank page now
+and then):
 
 ```powershell
 uv run python scripts/tablet_backup.py "$env:USERPROFILE\Backups\remarkable\$(Get-Date -Format yyyy-MM-dd)-<label>"
@@ -381,9 +413,10 @@ It refuses a `<dest>` that already exists or that lies inside a git repository, 
 readable by its owner only (on Linux and macOS), and needs the storage's raw size plus 5 GB free on
 the target drive (about 12.7 GB; the backup itself is about 440 MB). What it holds and checks is in
 the script's docstring and in the `README.txt` it writes: a raw image of `mmcblk2` and both boot
-areas, a file copy of `/home` and `/etc` with the tablet's own file list and SHA-256 sums, and
-`SHA256SUMS` over all of it. Partitions mounted read-write (p1, p2, p4) change while the tablet
-runs, so their image hash is reported rather than required; p4 is checked through the file copy.
+areas (not the `mmcblk2rpmb` security partition, which is a character device), a file copy of
+`/home` and `/etc` with the tablet's own file list and SHA-256 sums, and `SHA256SUMS` over all of
+it. Partitions mounted read-write (p1, p2, p4) change while the tablet runs, so their image hash is
+reported rather than required; p4 is checked through the file copy.
 
 Check a backup later (Git for Windows ships `sha256sum`):
 
@@ -416,15 +449,21 @@ Keep it on your PC; never sync, share or commit it.
 |---|---|---|
 | `Connection timed out` / `No route to host` | tablet asleep, unplugged, or no USB network adapter | wake the tablet; a running server reconnects by itself. Otherwise replug and check the RNDIS adapter (D1) |
 | Chip `Down - connection lost (retrying)` | a running stream ended: cable out, tablet asleep, Wi-Fi gone (ssh's own line is in the server log, `source.down`) | nothing; inkboard tries USB, then Wi-Fi, by itself. Wake the tablet if it slept |
+| Chip `Down - ssh client not found: …` (no retry) | Windows' OpenSSH Client is not installed, or `INKBOARD_SSH_BIN` points to a missing file | add **OpenSSH Client** under **Settings → Optional features** (or, in an elevated PowerShell, `Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0`), then start `serve` again |
+| Chip `Down - Host key verification failed. (retrying)`, or probe prints `ssh failed: Host key verification failed.` | the tablet's SSH host key changed, usually after a firmware update; inkboard checks the key over USB too | confirm over the cable that it is your tablet, then "After a tablet firmware update", step 1 |
+| Chip `Down - replay finished` | a replay without `--loop` reached the end of the recording | nothing; add `--loop` to play it again and again |
+| Chip `Disconnected from inkboard - reconnecting…` | the page lost the server: `serve` stopped or restarted | start `uv run inkboard serve` again; the page reconnects by itself |
 | Chip `USB: no answer (tablet asleep?)` / `<address>: no answer (tablet asleep?)` | the tablet sleeps (the PC keeps its cable address while the tablet sleeps on the cable) | wake it |
 | Chip `… no Wi-Fi search while the USB cable is in` | the cable is in, so inkboard does not search the network | wake the tablet; it connects over USB |
 | Chip `… Wi-Fi search off - set INKBOARD_TABLET_MAC` | no tablet MAC is configured, so inkboard never searches | set `INKBOARD_TABLET_MAC` in `.env` (D3b step 5), or list the address in `INKBOARD_WIFI_ADDRESSES` |
-| Chip `… next Wi-Fi search in N min` | the search runs once when the tablet is lost, then after 5, 15 and 60 minutes, to keep the network quiet | wake the tablet: the remembered address is tried every few seconds; or plug in once |
+| Chip `… next Wi-Fi search in N min` | the search runs once when the tablet is lost, then after 5 and 15 minutes, then hourly, to keep the network quiet | wake the tablet: the remembered address is tried every few seconds; or plug in once |
 | Chip `… searched <network> - tablet not found` | the tablet sleeps on this network (its known address is in the searched network) | wake it |
 | Chip `… tablet not found (guest or company Wi-Fi may block devices from reaching each other)` | client isolation on the Wi-Fi, the tablet on another network, or asleep on a network inkboard has not seen it on | plug in once (the tablet then reports its Wi-Fi address), or use the cable; on a guest network, use another network |
 | Chip `… too large to search (over /22) - plug in once or set INKBOARD_WIFI_ADDRESSES` | the PC's network has more than 1,022 addresses, so inkboard does not search it | plug in once, or set `INKBOARD_WIFI_ADDRESSES` to the tablet's address |
 | Chip `… routed through a VPN, not searched` | the VPN carries the local network's traffic, so a search would leave the PC | turn the VPN off, or plug in |
 | Chip `Wi-Fi search unavailable (… failed)` | PowerShell or `arp` could not run (policy, or not Windows) | list the address in `INKBOARD_WIFI_ADDRESSES`, or plug in once |
+| Chip `… Wi-Fi search not available on this OS` | the search uses Windows-only reads | list the address in `INKBOARD_WIFI_ADDRESSES`, or plug in once |
+| Chip `… no Wi-Fi or Ethernet network to search` | the PC has no physical network adapter with a private address to search (only the USB cable, or no network at all) | connect the PC to the tablet's network, or plug in |
 | Chip `<address>: SSH refused - SSH over Wi-Fi may be off on the tablet` / `tablet found at <address> but SSH over Wi-Fi is off` | the marker is gone (`rm-ssh-over-wlan off`, a reset) | D3b |
 | Chip `<address>: different SSH host key - not the tablet, or the tablet after a firmware update` | another device has the tablet's old address, or a firmware update changed the key; the address is skipped for 10 minutes and the login key was never offered | plug in; if USB also refuses the key, see `REMOTE HOST IDENTIFICATION HAS CHANGED` below |
 | Cable back in, but the chip stays on Wi-Fi for up to about 30 s | Windows is bringing the cable network back | wait; `Get-NetIPAddress -AddressFamily IPv4 \| Where-Object IPAddress -like '10.11.99.*'` shows when it is back |
@@ -439,12 +478,19 @@ Keep it on your PC; never sync, share or commit it.
 | `pidof dd` shows a reader after the server stopped | a clean stop leaves one until the next pen movement; one from a connection that broke while the tablet slept lingers until the tablet's TCP stack gives up | harmless: it only reads the pen, and exits on the next pen movement once that connection is closed |
 | `[Errno 10048]` address in use | another local server on port 8000 | `Get-NetTCPConnection -LocalPort 8000 -State Listen`; or `uv run inkboard serve --port 8010` |
 | Page loads, status stays "Starting…" | the browser kept an old cached script | reload with Ctrl+Shift+R |
+| Copy image or Save PNG missing after an update | the browser kept the old cached script | reload with Ctrl+Shift+R |
 | Page loads, WebSocket refused | the page was opened from another origin | use `http://127.0.0.1:8000` or `http://localhost:8000` |
 | Erasing on the tablet draws a line in Sketch | with the standard Marker the toolbar Eraser is used with the pen tip, which the pen reports as an ordinary stroke | switch to **Screen**, which shows the erasure; or press **Clear** and draw again |
 | Copy image and Save PNG greyed out, tooltip "Nothing to export yet" | Sketch: no pen strokes on the page (eraser strokes do not count) | draw first |
 | Copy image and Save PNG greyed out, tooltip "No screen frame yet" | Screen: no picture has arrived | wait about 2 s, or press **Refresh** |
 | Screen shows an old picture after a page turn or a menu | finger actions are not in the pen stream, so they do not trigger a grab | press **Refresh** |
+| Screen keeps its last picture and the chip says Down | the tablet is asleep or unplugged | wake it or plug in; Screen fetches a fresh picture when the pen stream reconnects |
 | Screen picture turned the wrong way | the page view does not match the tablet's mode | switch Vertical / Horizontal; the switch also fetches a fresh picture |
+| A pasted or saved image is turned the wrong way | the page view did not match the tablet's mode when you copied | switch Vertical / Horizontal and copy again |
+| "Screen: the tablet is not connected" | the pen stream is down, so there is no link to read the screen over | wake or plug in the tablet; Screen fetches a picture when it reconnects |
+| "Screen: could not start ssh: …" | the SSH client could not be started | see the `ssh client not found` row |
+| "Screen: " followed by an ssh error line | the screen read's own SSH connection failed (the tablet went to sleep, a changed host key) | see the matching chip row above, then **Refresh** |
+| "Screen: the frame could not be loaded" | the page could not fetch the picture from the server (`serve` stopped, or the browser blocked the request) | check that `serve` runs, reload the page, then **Refresh** |
 | "Screen: Screen view supports firmware 3.24 and 3.29; the tablet has …" | a firmware version that was never measured; nothing is read | measure it (D7) |
 | "Screen: the frame does not look like a screen image - re-measure (see docs/operations/device-setup.md, D7)" | the memory offset moved inside a known version | measure it (D7) |
 | "Screen: screen memory not found" / "screen memory could not be read" / "unexpected frame size" | xochitl's memory layout changed | measure it (D7) |
@@ -457,7 +503,8 @@ Keep it on your PC; never sync, share or commit it.
 
 ## After a tablet firmware update
 
-Over the cable, in this order, before trusting live use:
+With automatic updates on (the tablet's default), this can happen overnight; D0 shows how to
+choose when it updates. Over the cable, in this order, before trusting live use:
 
 1. `C:\Windows\System32\OpenSSH\ssh.exe -o BatchMode=yes remarkable "echo ok"`: expect a changed
    host key (see the troubleshooting table), and replace it only after confirming it is your
@@ -477,8 +524,8 @@ The D8 backup restores any file.
 
 - **SSH over Wi-Fi** (in this order): `rm-ssh-over-wlan off`; then
   `rm /etc/systemd/system/dropbear-wlan@.service` and `systemctl daemon-reload`, each as its own
-  command; then delete inkboard's remembered address (`link.json`, see README, Settings). USB keeps
-  working throughout.
+  command; then delete inkboard's remembered address (`link.json`, see README, "USB and Wi-Fi").
+  USB keeps working throughout.
 - **Key login:** on the tablet, remove the `inkboard` line from `/home/root/.ssh/authorized_keys`.
   On the PC, `ssh-keygen -R remarkable`, remove the `Host remarkable` block from `~/.ssh/config`
   (or restore your backup of it), and delete the `id_ed25519_remarkable` key pair.

@@ -30,10 +30,10 @@ safely.
    or frame ever reaches a log or the disk, the SSH argv is built in code from validated settings,
    every address connection checks the host key, the network search stays opt-in and bounded, the
    screen is only read. A change that needs to break one is a design decision: write an ADR.
-5. **Test honestly.** Every refusal test has its control. Test data uses documentation values only
-   (MAC `00:00:5E:00:53:xx`, addresses in `192.168.1.0/24`); no real device, network, path or
-   drawing. Never change a test to match changed code unless the behaviour change was intended and
-   is stated.
+5. **Test honestly.** Every refusal test has its control. Test data uses example values only (MAC
+   `00:00:5E:00:53:xx` from the RFC 7042 documentation range, addresses in the example LAN
+   `192.168.1.0/24`); no real device, network, path or drawing. Never change a test to match
+   changed code unless the behaviour change was intended and is stated.
 6. **Never change a user's tablet from code or a test.** The runbook's tablet steps are run by a
    person, deliberately, after a backup (D8).
 
@@ -70,7 +70,7 @@ safely.
 - **A page that connects while a replay is still running** can receive a few points twice, so take
   Sketch pixel hashes only after the replay has finished.
 - **Importing `services/screen.py` costs about 0.8 s**: `tests/fake_device.py` imports it only in
-  its screen modes, so a pen-mode child starts quickly.
+  its screen modes, because `read_raw`'s test gives a pen-mode child one second to start.
 - **`probe` and `record` use the `remarkable` host entry as written**, which is the USB cable; only
   `serve` chooses between USB and Wi-Fi.
 - **A firmware update changes the tablet's SSH host key** (seen from 3.24 to 3.29) and can move the

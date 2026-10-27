@@ -15,8 +15,9 @@ the instant stroke view.
 
 The rM2 has no public screen API, and `/dev/fb0` reads empty. reMarkable's app, xochitl, keeps
 the screen image in its own memory. Since firmware 3.23 / 3.24 it is a 1404 × 1872 ABGR32 frame
-in the anonymous map that follows the `/dev/fb0` map, at a fixed offset. The community found
-where it lives ([goMarkableStream issue #140](https://github.com/owulveryck/goMarkableStream/issues/140),
+(in memory the bytes B, G, R, A) in the anonymous map that follows the `/dev/fb0` map, at a fixed
+offset. The community found where it lives
+([goMarkableStream issue #140](https://github.com/owulveryck/goMarkableStream/issues/140),
 [reSnap PR #27](https://github.com/cloudsftp/reSnap/pull/27)); inkboard measured the offset on
 its own (two pixels later than reSnap's) and shares no code with either project.
 
@@ -48,7 +49,7 @@ receiving raw RGBA over loopback (not option 4: a new dependency for no gain on 
 - The picture is exactly what the tablet shows, so the agent sees erasing, selections and text
   as the user does.
 - Fast enough for snapshots: about 0.85 s per grab over USB with `gzip -1` (0.5 s of it the SSH
-  connect, which Windows OpenSSH cannot share between runs), and 0.87–1.04 s over Wi‑Fi, where
+  connect, which Windows OpenSSH cannot share between runs), and 0.87–1.04 s over Wi-Fi, where
   the grab follows the pen stream's link (ADR 0003).
 
 ## Consequences
@@ -57,7 +58,7 @@ receiving raw RGBA over loopback (not option 4: a new dependency for no gain on 
   them (3.23 / 3.24 did once). Screen then refuses or reports a bad frame, Sketch keeps working,
   and the runbook's section D7 re-measures it (3.24.0.149 and 3.29.0.153 share the offset
   2,629,640).
-- Not live video: a picture arrives about 2 s after the pen lifts, and finger actions need
+- Not live video: a picture arrives a second or two after the pen lifts, and finger actions need
   Refresh. Live video would need option 2, a tablet change.
 - A frame is handwriting-grade and shows whatever is open on the tablet, read as root: it is
   never logged or written to disk by the server, held only while a page shows Screen, and served

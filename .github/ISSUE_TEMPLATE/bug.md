@@ -25,6 +25,6 @@ it with a placeholder.
 
 - Windows version (or Linux/macOS):
 - inkboard version (`uv run python -c "import inkboard; print(inkboard.__version__)"`):
-- Tablet firmware (Settings > General > About):
+- Tablet firmware (Menu > Settings > Software > Version):
 - Link: USB / Wi-Fi
 - Browser:

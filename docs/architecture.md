@@ -22,7 +22,8 @@ rM2 /dev/input/event1 --ssh [-o HostName=<ip> -o HostKeyAlias=remarkable
                        stderr -> marker = "connected" (link.connected); wlan0 line = the
                        tablet's Wi-Fi address (link.json); other lines = status detail
   -> Hub (asyncio): StrokeBuilder, page state, orientation -> page units, batching,
-                    bounded queue per browser tab; any status but connected ends the stroke
+                    bounded queue per browser tab (1000; on overflow the tab is closed with 1013
+                    and reconnects to a fresh snapshot); any status but connected ends the stroke
   -> WebSocket /api/v1/ws -> static/app.js canvas (incremental drawing, Vertical/Horizontal view,
                              image export: Copy image / Save PNG, drawn again off-screen)
 ReplaySource (recorded file) is the drop-in for offline use and tests.
@@ -61,10 +62,11 @@ TestCardGrabber (synthetic frame) stands in for the tablet in replay mode and te
 The tablet is in **portrait** or **landscape** mode (reMarkable's own words); the page has a
 **Vertical** and a **Horizontal** view to match. The page shows one of two **boards**, **Sketch** or
 **Screen** (the documentation says "the Sketch view" and "the Screen view"; the code says `board`,
-stored as `inkboard.board`). The tablet's screen image is a **frame** in code (`frame*` names); in
-`app.js`, `screen` is the Sketch drawing target and keeps that meaning. The WebSocket message
-`snapshot` is the full page state sent on connect; what a user hands to an agent is the **image
-export** (the buttons **Copy image** and **Save PNG**).
+stored as `inkboard.board`; the view and the Copy menu choice are `inkboard.view` and
+`inkboard.copyMenu` in the browser's local storage). The tablet's screen image is a **frame** in
+code (`frame*` names); in `app.js`, `screen` is the Sketch drawing target and keeps that meaning.
+The WebSocket message `snapshot` is the full page state sent on connect; what a user hands to an
+agent is the **image export** (the buttons **Copy image** and **Save PNG**).
 
 ## Image export
 
@@ -114,8 +116,9 @@ ADR.
   fixed at start-up and never derived from the request; a missing Origin is refused.
   TrustedHostMiddleware refuses any other Host (DNS rebinding).
 - **No handwriting in logs.** `core/logging.drop_handwriting` strips coordinate and pressure keys;
-  logs carry ids and counts only. Raw captures go to the git-ignored `recordings/`; the only
-  committed device data is a deliberately non-personal fixture.
+  logs carry ids, counts, network addresses and ssh's own messages, never points or frames. Raw
+  captures go to the git-ignored `recordings/`; the only committed device data is a deliberately
+  non-personal fixture.
 - **The SSH argv is built in code from validated settings** (`ssh_host`, `pen_device` patterns):
   never a free-form command setting, never `shell=True`, never `-t`/`-tt` (a pty corrupts the
   binary stream).
@@ -127,8 +130,8 @@ ADR.
 - **The Wi-Fi search is opt-in, quiet and bounded** (`services/discovery.py`): only with a tablet
   MAC set; private subnets of physical adapters only, up to /22, none routed into a VPN, never
   while the USB route is up; one UDP datagram per address, port 22 only on the tablet's MAC; once
-  per lost episode, then after 5, 15 and 60 minutes. A limit that stops it is said on the chip,
-  never cut short silently.
+  per lost episode, then after 5 and 15 minutes, then hourly until the tablet is back. A limit
+  that stops it is said on the chip, never cut short silently.
 - **Sources run in threads, never as asyncio subprocesses**: a Selector loop on Windows cannot
   start subprocesses. The thread-to-loop hand-off is `call_soon_threadsafe` via `Hub.callbacks`.
 - **The WebSocket handler runs its send and receive loops in one anyio task group**: plain asyncio
@@ -143,9 +146,15 @@ ADR.
 - **A frame is handwriting-grade**: never logged (`frame`, `rgba`, `bgra`, `raw` are dropped keys;
   tracebacks are plain, without locals), never written to disk by the server, dropped when the last
   page leaves the Screen view, and served only by `GET /api/v1/screen/frame` with
-  `Cache-Control: no-store`, `Cross-Origin-Resource-Policy: same-origin`, 403 unless Fetch Metadata
-  says a same-origin fetch, and no side effect: a grab starts only from the Origin-checked
-  WebSocket.
+  `Cache-Control: no-store`, `Cross-Origin-Resource-Policy: same-origin`, 403 when Fetch Metadata
+  names another site or a non-fetch destination (a request without those headers, such as `curl`,
+  is allowed, since only this machine can reach the port), and no side effect: a grab starts only
+  from the Origin-checked WebSocket.
+- **Tracebacks stay plain, by requirement.** When `rich` is installed (it is, through the dev
+  tools), structlog's default console renderer prints every local variable in a traceback, so a
+  frame or a list of points held in a local would reach the console. `core/logging.py` therefore
+  pins `exception_formatter=structlog.dev.plain_traceback`, and `tests/test_logging.py` checks that
+  the traceback prints while a local value does not.
 - **`demo.bin` is generated, never edited**: `uv run inkboard demo --out tests/fixtures/demo.bin`;
   a test fails when it drifts from the generator.
 

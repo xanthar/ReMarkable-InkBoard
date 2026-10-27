@@ -5,12 +5,27 @@ build-backend = "uv_build"
 [project]
 name = "inkboard"
 version = "0.1.0"
-description = "Live drawing board for the reMarkable 2: pen strokes and the tablet's screen in your browser, over USB or Wi-Fi"
+description = "Live drawing board for the reMarkable 2: pen strokes and the tablet's screen in a browser on your PC, copied as a PNG for an AI chat; USB or Wi-Fi"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "xanthar" }]
-keywords = ["remarkable", "remarkable-2", "drawing", "sketch", "whiteboard", "ssh", "fastapi"]
+keywords = [
+    "remarkable",
+    "remarkable-2",
+    "remarkable-tablet",
+    "e-ink",
+    "drawing",
+    "sketch",
+    "whiteboard",
+    "handwriting",
+    "diagram",
+    "screen-mirroring",
+    "ai-agent",
+    "llm",
+    "mermaid",
+    "ssh",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Web Environment",
