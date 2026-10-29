@@ -23,7 +23,7 @@ from inkboard.services.discovery import (
 from inkboard.services.sources import Runner
 from tests import netguard
 
-# Documentation values only (RFC 7042 MAC range, an example private LAN): never a real device.
+# Example values only (the RFC 7042 documentation MAC range, an example private LAN): never a real device.
 MAC = "00:00:5E:00:53:AF"
 TABLET = IPv4Address("192.168.1.163")
 PC = IPv4Interface("192.168.1.66/24")

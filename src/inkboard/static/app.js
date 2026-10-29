@@ -44,7 +44,7 @@
     const frameState = document.getElementById("frame-state");
     const frameGlyph = frameState.querySelector(".frame-glyph");
     const frameText = frameState.querySelector(".frame-text");
-    // The tablet's frame, described in docs/architecture.md "Screen export": portrait, RGBA, from the server.
+    // The tablet's frame, described in docs/architecture.md "Image export", Screen: portrait, RGBA, from the server.
     const FRAME_W = 1404;
     const FRAME_H = 1872;
     const FRAME_URL = "/api/v1/screen/frame";

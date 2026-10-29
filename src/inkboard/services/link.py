@@ -8,7 +8,7 @@ order:
    connected on (both kept in ``link.json`` outside the repo);
 3. ``INKBOARD_WIFI_ADDRESSES``, in order;
 4. the search (``discovery.find_tablet``): only when ``INKBOARD_TABLET_MAC`` is set, never while
-   the USB route is up, once when the tablet is lost, then after 5, 15 and 60 minutes.
+   the USB route is up, once when the tablet is lost, then after 5 and 15 minutes, then hourly.
 
 A candidate is only a place to try. The pen stream's own ssh run checks the host key (see
 ``sources.ssh_base_argv``) before any data or key leaves the PC; an address that fails it is

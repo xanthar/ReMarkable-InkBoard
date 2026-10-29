@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from inkboard.core.config import WINDOWS_SSH, Settings, default_ssh_bin, is_wifi_candidate
 from inkboard.services.geometry import Orientation
 
-# Documentation values only (RFC 7042 MAC range, an example private LAN): never a real device.
+# Example values only (the RFC 7042 documentation MAC range, an example private LAN): never a real device.
 MAC = "00:00:5E:00:53:AF"
 
 
