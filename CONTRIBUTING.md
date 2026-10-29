@@ -117,6 +117,12 @@ then change `SUPPORTED_FIRMWARE` (and `FRAME_OFFSET` if it moved) in
 `src/inkboard/services/screen.py`, extend `tests/test_screen.py`, and say in the pull request
 which tablet and firmware you measured on.
 
+## Screenshots
+
+`docs/images/inkboard.png` (the README) and `docs/images/social-preview.png` (the repository's
+1280 × 640 social preview) are screenshots of the page. When you retake one, connect over the USB
+cable so the chip shows no network address, and draw nothing personal.
+
 ## Commits and pull requests
 
 - Work on a branch and open a pull request against `main`; CI must be green.

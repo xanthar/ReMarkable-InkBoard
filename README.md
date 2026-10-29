@@ -20,7 +20,7 @@ It installs nothing on the tablet to do this, serves the page on `127.0.0.1` onl
 your handwriting. It uses the USB cable when it is plugged in and the tablet's Wi-Fi when it is
 not, and it switches between the two by itself.
 
-![The inkboard page in the Sketch view, replaying the sample recording: a circle, a square and the word "inkboard"](docs/images/inkboard.png)
+![The inkboard page in the Sketch view, connected over USB, showing a diagram drawn live on the tablet: tablet, inkboard, AI chat and Mermaid joined by arrows](docs/images/inkboard.png)
 
 ## Why you might want it
 
