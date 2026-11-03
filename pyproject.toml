@@ -91,7 +91,7 @@ dev = [
     "bandit>=1.9.4",
     # starlette.testclient prefers httpx2 and warns that plain httpx is deprecated.
     "httpx2>=2.16",
-    "mypy>=2.4.0",
+    "mypy>=2.4.1",
     "pip-audit>=2.10.1",
     "pytest>=9.1.1",
     "pytest-cov>=7.0",
