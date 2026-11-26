@@ -83,7 +83,8 @@ class ClearRequest(BaseModel):
 
 
 class ScreenRequest(BaseModel):
-    """The page shows the Screen view (``on``), leaves it (``off``) or asks for a frame now."""
+    """A client (the page or ``inkboard snapshot``) shows the Screen view (``on``), leaves it
+    (``off``) or asks for a frame now."""
 
     type: Literal["screen"]
     action: Literal["on", "off", "refresh"]

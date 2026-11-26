@@ -383,7 +383,12 @@ def test_a_failed_grab_publishes_the_error_and_keeps_no_frame() -> None:
         service.start(asyncio.get_running_loop())
         service.subscribe("page")
         await settle(service)
-        assert pages.messages[-1] == {"type": "screen", "state": "error", "detail": "screen memory not found"}
+        assert pages.messages[-1] == {
+            "type": "screen",
+            "state": "error",
+            "kind": "no_map",
+            "detail": "screen memory not found",
+        }
         assert service.latest is None
 
     run(scenario)

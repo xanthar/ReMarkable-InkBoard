@@ -14,9 +14,9 @@ The tablet is only read. Every frame is checked before it is used: exact size, a
 every pixel, which a moved offset breaks. A frame is handwriting-grade: it is never logged and
 never written to disk here.
 
-ScreenService decides when to grab: when a page shows the Screen view, ``delay_s`` after the pen
-lifts (never while it is down), and at once on Refresh, on subscribe and after the pen source
-reconnects. One grab runs at a time.
+ScreenService decides when to grab: while a client shows the Screen view (a page, or the
+``inkboard snapshot`` command), ``delay_s`` after the pen lifts (never while it is down), and at
+once on Refresh, on subscribe and after the pen source reconnects. One grab runs at a time.
 """
 
 import asyncio
@@ -71,7 +71,8 @@ def screen_argv(settings: Settings, address: IPv4Address | None = None) -> list[
 
 
 class ScreenError(Exception):
-    """A failed grab; ``str(error)`` is the text the page shows, ``kind`` goes to the log."""
+    """A failed grab; ``str(error)`` is the text the page shows, ``kind`` a fixed identifier that
+    goes to the log and, with the text, on the screen error message."""
 
     def __init__(self, kind: str, message: str) -> None:
         super().__init__(message)
@@ -459,7 +460,7 @@ class ScreenService:
         except ScreenError as error:
             log.info("screen.grab", ms=round((time.monotonic() - started) * 1000), result=error.kind)
             if error.kind != "closed":
-                self._send({"type": "screen", "state": "error", "detail": str(error)})
+                self._send({"type": "screen", "state": "error", "kind": error.kind, "detail": str(error)})
             return
         ms = round((time.monotonic() - started) * 1000)
         log.info("screen.grab", ms=ms, result="ok", layout=layout)
