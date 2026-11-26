@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "inkboard"
-version = "0.1.0"
+version = "0.2.0"
 description = "Live drawing board for the reMarkable 2: pen strokes and the tablet's screen in a browser on your PC, copied as a PNG for an AI chat; USB or Wi-Fi"
 readme = "README.md"
 license = "MIT"
