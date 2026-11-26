@@ -508,9 +508,9 @@ itself by default; to choose when it updates, turn automatic updates off under *
 Software → Version** and update from the same screen when you have time for these checks.
 
 1. **The SSH host key.** An update can replace it, even a small one (3.29.0.153 to 3.29.1.0 did).
-   The chip then says `Down - Host key
-   verification failed. (retrying)`, and your own `ssh` says `REMOTE HOST IDENTIFICATION HAS
-   CHANGED`. Confirm over the cable that it really is your tablet, then replace the stored key:
+   The chip then says `Down - Host key verification failed. (retrying)`, and your own `ssh` says
+   `REMOTE HOST IDENTIFICATION HAS CHANGED`. Confirm over the cable that it really is your
+   tablet, then replace the stored key:
 
    ```powershell
    C:\Windows\System32\OpenSSH\ssh-keygen.exe -R remarkable

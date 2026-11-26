@@ -36,9 +36,8 @@ recording, saved from the page, can pin that.
   which only holds hosts on the PC's own subnets. A tablet on a separate network behind the router,
   such as an IoT VLAN, is never found: the remembered address is stale until the tablet is plugged
   in once (it then reports its new address) or the address is listed in `INKBOARD_WIFI_ADDRESSES`
-  by hand. Option: an opt-in, configured subnet that is
-  searched with a bounded port-22 check, the host key being the proof as today. It must keep the
-  search opt-in and bounded (ADR 0003).
+  by hand. Option: an opt-in, configured subnet that is searched with a bounded port-22 check, the
+  host key being the proof as today. It must keep the search opt-in and bounded (ADR 0003).
 - **A changed host key, guided.** A firmware update or a reset gives the tablet a new SSH host key,
   and inkboard refuses it, which is right. Today the way back is the runbook's `ssh-keygen` steps
   by hand. The page could show the new fingerprint, compare it with the one read over the USB
