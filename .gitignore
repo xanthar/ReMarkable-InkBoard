@@ -31,6 +31,13 @@ docs/analysis/
 # (tests/fixtures/rm2-sample.bin is a deliberate, non-personal sample; see tests/fixtures/README.md.)
 recordings/
 
+# Screen and Sketch images are handwriting too: never committed (docs/images/ holds the deliberate
+# ones). `inkboard snapshot` also refuses to write inside a git work tree; this is the second line.
+*.png
+!docs/images/*.png
+# The snapshot command's temporary file while it writes.
+.*.tmp
+
 # Operating system noise
 .DS_Store
 Thumbs.db

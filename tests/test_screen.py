@@ -15,7 +15,6 @@ from inkboard.services.screen import (
     FRAME_H,
     FRAME_OFFSET,
     FRAME_W,
-    ICON,
     LAYOUTS,
     MASKS,
     Frame,
@@ -32,7 +31,7 @@ from inkboard.services.screen import (
     unpack,
 )
 from inkboard.services.sources import ssh_base_argv
-from tests.fakes import FakeGrabber
+from tests.fakes import FakeGrabber, frame_with
 
 FAKE = str(Path(__file__).with_name("fake_device.py"))
 DELAY = 0.05
@@ -41,21 +40,6 @@ WHITE = b"\xff" * FRAME_BYTES
 
 def fake(mode: str) -> list[str]:
     return [sys.executable, FAKE, mode]
-
-
-def stamp(frame: bytearray, x0: int, y0: int, mask: bytes) -> None:
-    bits = int.from_bytes(mask, "big")
-    for i in range(ICON * ICON):
-        if bits >> (ICON * ICON - 1 - i) & 1:
-            start = ((y0 + i // ICON) * FRAME_W + x0 + i % ICON) * 4
-            frame[start : start + 4] = b"\x00\x00\x00\xff"
-
-
-def frame_with(*icons: tuple[int, int, str]) -> bytes:
-    frame = bytearray(WHITE)
-    for x, y, name in icons:
-        stamp(frame, x, y, MASKS[name])
-    return bytes(frame)
 
 
 # ---- the remote command --------------------------------------------------------------------

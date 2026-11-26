@@ -6,9 +6,9 @@ Security for a single-user localhost tool:
 - the WebSocket accepts only the page's own origins, fixed at start-up and never derived
   from the request, so another website open in the browser cannot read the strokes;
 - strict CSP and framing headers on every HTTP response;
-- the Screen view's frame route answers only the page's own fetches (Fetch Metadata), is never
-  cached, and has no side effect: a grab on the tablet starts only from the Origin-checked
-  WebSocket.
+- the Screen view's frame route refuses a browser request from another site or that is not a
+  fetch (Fetch Metadata), is never cached, and has no side effect: a grab on the tablet starts only
+  from the Origin-checked WebSocket, used by the page and by ``inkboard snapshot`` (ADR 0004).
 
 On the tablet path one ``TabletLink`` chooses USB or Wi-Fi (ADR 0003); the pen stream and the
 screen grab both use the route it is connected on, and ``/api/v1/health/ready`` reports it.
@@ -159,7 +159,7 @@ def create_app(
         # Declared before the static mount at "/", which would otherwise shadow it.
         if not same_origin_fetch(request):
             return JSONResponse(
-                {"error": "forbidden", "message": "only the inkboard page may fetch the screen"},
+                {"error": "forbidden", "message": "only inkboard's own page or command may fetch the screen"},
                 status_code=403,
                 headers=FRAME_HEADERS,
             )

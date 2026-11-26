@@ -1,6 +1,8 @@
-"""Command line: ``inkboard serve | demo | record | probe``."""
+"""Command line: ``inkboard serve | snapshot | demo | record | probe``."""
 
 import argparse
+import io
+import logging
 import queue
 import subprocess  # nosec B404 - runs the user's own ssh client with a fixed argv
 import sys
@@ -78,6 +80,45 @@ def cmd_serve(args: argparse.Namespace) -> int:
         log_level="warning",
     )
     return 0
+
+
+def cmd_snapshot(args: argparse.Namespace) -> int:
+    """Save the Screen view as a PNG; stdout gets one line on success, stderr one on failure."""
+    from pydantic import ValidationError
+
+    from inkboard.services import pull  # imported here: the WebSocket client is only needed here
+
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")  # a path or an OS message can be non-ASCII
+    logging.getLogger("websockets").setLevel(logging.WARNING)  # its debug lines carry message bodies
+
+    def fail(code: int, message: str) -> int:
+        sys.stderr.write(f"snapshot: {message}\n")
+        sys.stderr.flush()
+        return code
+
+    if args.timeout <= 0:
+        return fail(pull.USAGE, "--timeout must be more than 0")
+    try:
+        settings = Settings(**({"port": args.port} if args.port is not None else {}))
+    except ValidationError as exc:  # names only: .env holds the tablet's MAC and addresses
+        fields = ", ".join(".".join(str(part) for part in error["loc"]) for error in exc.errors())
+        return fail(pull.USAGE, f"invalid setting: {fields}")
+    out = Path(args.out).resolve()
+    if out.is_dir():
+        return fail(pull.USAGE, f"{out} is a folder; --out needs a file name")
+    repository = pull.inside_git_work_tree(out)
+    if repository is not None:
+        return fail(pull.USAGE, f"{out} is inside the git work tree {repository}; write the image outside it")
+    try:
+        line = pull.snapshot(settings.port, out, args.timeout, args.turn)
+    except pull.PullError as error:
+        return fail(error.code, str(error))
+    except Exception as exc:  # the type only: a message or a traceback could carry pixels or strokes
+        return fail(pull.UNEXPECTED, f"unexpected {type(exc).__name__}")
+    say(line)
+    return pull.OK
 
 
 def cmd_demo(args: argparse.Namespace) -> int:
@@ -229,6 +270,18 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, help="default 8000 (INKBOARD_PORT)")
     serve.add_argument("--event-size", type=int, choices=(16, 24), help="frame size (INKBOARD_EVENT_SIZE)")
     serve.set_defaults(handler=cmd_serve)
+
+    snapshot = sub.add_parser("snapshot", help="save the tablet's screen as a PNG, from a running serve")
+    snapshot.add_argument("--out", required=True, help="PNG file to write (not inside a git work tree)")
+    snapshot.add_argument("--port", type=int, help="the port serve runs on; default 8000 (INKBOARD_PORT)")
+    snapshot.add_argument("--timeout", type=float, default=30.0, help="give up after this many seconds")
+    snapshot.add_argument(
+        "--turn",
+        choices=("auto", "none", "cw"),
+        default="auto",
+        help="auto: a landscape screen is turned clockwise, as the page's Horizontal view",
+    )
+    snapshot.set_defaults(handler=cmd_snapshot)
 
     demo = sub.add_parser("demo", help="write a synthetic pen recording")
     demo.add_argument("--out", required=True, help="file to write")

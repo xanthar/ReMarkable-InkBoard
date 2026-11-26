@@ -48,3 +48,15 @@ def test_record_reports_ssh_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPa
 def test_a_command_is_required() -> None:
     with pytest.raises(SystemExit):
         cli.main([])
+
+
+@pytest.mark.parametrize("argv", [["snapshot"], ["snapshot", "--out", "a.png", "--turn", "ccw"]])
+def test_snapshot_needs_out_and_a_known_turn(argv: list[str]) -> None:
+    with pytest.raises(SystemExit) as usage:
+        cli.main(argv)
+    assert usage.value.code == 2
+
+
+def test_snapshot_defaults() -> None:  # control: a valid command line parses
+    args = cli.build_parser().parse_args(["snapshot", "--out", "a.png"])
+    assert (args.port, args.timeout, args.turn) == (None, 30.0, "auto")
