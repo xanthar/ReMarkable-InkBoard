@@ -34,8 +34,9 @@ recording, saved from the page, can pin that.
   tablet by a second or two. The drawing and the exported image do not change.
 - **Tablet on another network (VLAN).** The Wi-Fi search reads the PC's neighbour (ARP) cache,
   which only holds hosts on the PC's own subnets. A tablet on a separate network behind the router,
-  such as an IoT VLAN, is never found and must be listed in `INKBOARD_WIFI_ADDRESSES` by hand; the
-  remembered address goes stale when the tablet moves. Option: an opt-in, configured subnet that is
+  such as an IoT VLAN, is never found: the remembered address is stale until the tablet is plugged
+  in once (it then reports its new address) or the address is listed in `INKBOARD_WIFI_ADDRESSES`
+  by hand. Option: an opt-in, configured subnet that is
   searched with a bounded port-22 check, the host key being the proof as today. It must keep the
   search opt-in and bounded (ADR 0003).
 - **A changed host key, guided.** A firmware update or a reset gives the tablet a new SSH host key,

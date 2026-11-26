@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation: troubleshooting covers a tablet that moved to another network (another Wi-Fi or a
+  separate VLAN), which the search cannot see; firmware 3.29.1.0 noted (a new SSH host key, the
+  same Wi-Fi unit file, Screen and Copy menu checked by eye); the roadmap lists finding a tablet on
+  another VLAN and a guided host-key change.
+
 ### Security
 
 - `opentelemetry-api` (pulled in by FastAPI) locked at 1.45.2, which fixes GHSA-mf5v-w3w3-f6cg

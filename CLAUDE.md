@@ -73,5 +73,5 @@ safely.
   its screen modes, because `read_raw`'s test gives a pen-mode child one second to start.
 - **`probe` and `record` use the `remarkable` host entry as written**, which is the USB cable; only
   `serve` chooses between USB and Wi-Fi.
-- **A firmware update changes the tablet's SSH host key** (seen from 3.24 to 3.29) and can move the
+- **A firmware update changes the tablet's SSH host key** (seen from 3.24 to 3.29 and from 3.29.0.153 to 3.29.1.0) and can move the
   screen offset: see the README's firmware-update section and runbook D7.

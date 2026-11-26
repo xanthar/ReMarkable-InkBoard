@@ -507,7 +507,8 @@ cable before trusting live use. The runbook has the full list and its order. The
 itself by default; to choose when it updates, turn automatic updates off under **Menu → Settings →
 Software → Version** and update from the same screen when you have time for these checks.
 
-1. **The SSH host key.** An update can replace it. The chip then says `Down - Host key
+1. **The SSH host key.** An update can replace it, even a small one (3.29.0.153 to 3.29.1.0 did).
+   The chip then says `Down - Host key
    verification failed. (retrying)`, and your own `ssh` says `REMOTE HOST IDENTIFICATION HAS
    CHANGED`. Confirm over the cable that it really is your tablet, then replace the stored key:
 
@@ -541,6 +542,7 @@ host entry and the key pair on the PC.
 | Chip `Down - ssh client not found: …` | Windows' OpenSSH Client is not installed, or `INKBOARD_SSH_BIN` points to a missing file | add **OpenSSH Client** under **Settings → Optional features**, then start `serve` again |
 | Chip `Down - Host key verification failed. (retrying)` | the tablet's SSH host key changed, usually after a firmware update | confirm over the cable that it is your tablet, then follow [After a tablet firmware update](#after-a-tablet-firmware-update), step 1 |
 | Chip `… no answer (tablet asleep?)` | the tablet is asleep | wake it |
+| Chip `… searched <network> - tablet not found` | the tablet is asleep, or it has moved to another network since its address was remembered (another Wi-Fi, or a separate VLAN behind the router); the search only sees the PC's own networks | wake it; if it moved, plug in once (the tablet then reports its new address) or list the new address in `INKBOARD_WIFI_ADDRESSES` |
 | Chip `… no Wi-Fi search while the USB cable is in` | the cable is in, so inkboard does not search | wake the tablet; it connects over the cable |
 | Chip `… Wi-Fi search off - set INKBOARD_TABLET_MAC` | no tablet MAC is set, so inkboard does not search | set it in `.env` ([setup step 5](#5-optional-ssh-over-wi-fi)), list the address in `INKBOARD_WIFI_ADDRESSES`, or plug in once |
 | Chip `… tablet not found (guest or company Wi-Fi may block devices from reaching each other)` | client isolation, the tablet on another network, or the tablet asleep on a network inkboard has not seen it on | plug in once, or use the cable |

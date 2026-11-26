@@ -23,7 +23,7 @@ the pen values on yours.
 
 | Item | Value |
 |---|---|
-| Firmware | measured on 3.24.0.149 and 3.29.0.153. Read it from `REMARKABLE_RELEASE_VERSION` in `/usr/share/remarkable/update.conf`; `/etc/os-release` `VERSION_ID` is the OS image, not the firmware |
+| Firmware | measured on 3.24.0.149 and 3.29.0.153; on 3.29.1.0 the Screen view and Copy menu were checked by eye, not re-measured. Read it from `REMARKABLE_RELEASE_VERSION` in `/usr/share/remarkable/update.conf`; `/etc/os-release` `VERSION_ID` is the OS image, not the firmware |
 | USB link | the tablet is `10.11.99.1`, the PC gets `10.11.99.2` (the `10.11.99.0/29` link is the same on every tablet) |
 | Pen device | `/dev/input/event1` ("Wacom I2C Digitizer"; tip and eraser end) |
 | Input record size | 16 bytes |
@@ -36,7 +36,7 @@ the pen values on yours.
 | Screen grab | SSH connect 0.44–0.60 s; one frame with `gzip -1` about 0.8–1.0 s over USB and 0.87–1.04 s over Wi-Fi; a blank page is 11–16 KB on the wire |
 | Screen layouts | right-handed toolbar: round button at (36, 36) portrait / (36, 1796) landscape, close X at (1328, 36) portrait / (36, 36) landscape, strip x 0–112 portrait / y 1760–1872 landscape (frame pixels; Copy menu paints x 0–116 / y 1756–1872) |
 | Link switch | cable out to Wi-Fi in about 2 s; cable in back to USB within a second of Windows bringing the cable network up (which can take up to about 30 s); ping over Wi-Fi averages about 16 ms with spikes of a few hundred ms |
-| eMMC | `mmcblk2` 7.65 GB (p1 vfat, p2 the running root, p3 the inactive root, p4 `/home`) plus `mmcblk2boot0` and `mmcblk2boot1`, 2 MB each; a full backup (D8) takes about 9 minutes and 440 MB |
+| eMMC | `mmcblk2` 7.65 GB (p1 vfat, p2 and p3 the two root file systems, one running and one inactive, which an update swaps; p4 `/home`) plus `mmcblk2boot0` and `mmcblk2boot1`, 2 MB each; a full backup (D8) takes about 9 minutes and 440 MB |
 | busybox | `pidof` has no `-s`; shell arithmetic is 64-bit; `gzip` present |
 
 These values are the defaults in `src/inkboard/core/config.py`, `services/screen.py`
@@ -457,7 +457,7 @@ Keep it on your PC; never sync, share or commit it.
 | Chip `… no Wi-Fi search while the USB cable is in` | the cable is in, so inkboard does not search the network | wake the tablet; it connects over USB |
 | Chip `… Wi-Fi search off - set INKBOARD_TABLET_MAC` | no tablet MAC is configured, so inkboard never searches | set `INKBOARD_TABLET_MAC` in `.env` (D3b step 5), or list the address in `INKBOARD_WIFI_ADDRESSES` |
 | Chip `… next Wi-Fi search in N min` | the search runs once when the tablet is lost, then after 5 and 15 minutes, then hourly, to keep the network quiet | wake the tablet: the remembered address is tried every few seconds; or plug in once |
-| Chip `… searched <network> - tablet not found` | the tablet sleeps on this network (its known address is in the searched network) | wake it |
+| Chip `… searched <network> - tablet not found` | the tablet sleeps on this network (its known address is in the searched network), or it has moved to another network since that address was remembered, such as another Wi-Fi or a separate VLAN behind the router; the search only sees the PC's own networks | wake it; if it moved, plug in once (the tablet then reports its new Wi-Fi address) or list the new address in `INKBOARD_WIFI_ADDRESSES` |
 | Chip `… tablet not found (guest or company Wi-Fi may block devices from reaching each other)` | client isolation on the Wi-Fi, the tablet on another network, or asleep on a network inkboard has not seen it on | plug in once (the tablet then reports its Wi-Fi address), or use the cable; on a guest network, use another network |
 | Chip `… too large to search (over /22) - plug in once or set INKBOARD_WIFI_ADDRESSES` | the PC's network has more than 1,022 addresses, so inkboard does not search it | plug in once, or set `INKBOARD_WIFI_ADDRESSES` to the tablet's address |
 | Chip `… routed through a VPN, not searched` | the VPN carries the local network's traffic, so a search would leave the PC | turn the VPN off, or plug in |
@@ -470,7 +470,7 @@ Keep it on your PC; never sync, share or commit it.
 | `ssh root@10.11.99.1` asks for a password | the key belongs to the `remarkable` entry | use `ssh remarkable` |
 | `Permission denied (publickey)` | the key is not in `authorized_keys`, or another key is used | redo D3; `ssh -G remarkable` shows which key is used |
 | `no matching host key type … ssh-rsa` | an old SSH server on an older firmware | add the two `+ssh-rsa` lines to the `remarkable` block only (D2) |
-| `REMOTE HOST IDENTIFICATION HAS CHANGED` | a factory reset or a firmware update (3.24 to 3.29 changed the key) | confirm it really is your tablet, over the USB cable (`10.11.99.1`), then `ssh-keygen -R remarkable` and `ssh -o StrictHostKeyChecking=accept-new remarkable "echo ok"`; if the key login also fails, redo D3 |
+| `REMOTE HOST IDENTIFICATION HAS CHANGED` | a factory reset or a firmware update (3.24 to 3.29 changed the key, and so did 3.29.0.153 to 3.29.1.0) | confirm it really is your tablet, over the USB cable (`10.11.99.1`), then `ssh-keygen -R remarkable` and `ssh -o StrictHostKeyChecking=accept-new remarkable "echo ok"`; if the key login also fails, redo D3 |
 | Connected, but nothing draws | wrong input device | `uv run inkboard probe`; set `INKBOARD_PEN_DEVICE` |
 | `frame misalignment` | wrong record size or device | `uv run inkboard probe`; set `INKBOARD_EVENT_SIZE` |
 | Strokes rotated or mirrored | the page view does not match the tablet's mode, or the orientation is wrong | switch Vertical / Horizontal; otherwise `uv run inkboard probe` and set `INKBOARD_ORIENTATION` |
