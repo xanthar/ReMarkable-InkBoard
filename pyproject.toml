@@ -44,7 +44,7 @@ dependencies = [
     "starlette>=1.0.1",
     "uvicorn>=0.54",
     # uvicorn has no WebSocket support of its own; without this the live page cannot connect.
-    "websockets>=17.3",
+    "websockets>=17.4",
     "structlog>=26.1",
     "pydantic-settings>=2.16",
 ]
