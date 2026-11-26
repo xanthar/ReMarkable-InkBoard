@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- `opentelemetry-api` (pulled in by FastAPI) locked at 1.45.2, which fixes GHSA-mf5v-w3w3-f6cg
+  (denial of service through quadratic-time `traceparent` parsing).
+
 ## [0.1.0] - 2026-10-27
 
 The first public release.
