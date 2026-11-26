@@ -6,8 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-26
+
+### Added
+
+- **`inkboard snapshot --out FILE`:** saves the tablet's screen as a PNG from a running `serve`,
+  so an AI agent that runs commands can fetch the page itself, as often as you redraw. It takes
+  only a picture grabbed after it started, paints the menu white, turns a landscape page
+  clockwise (`--turn auto|none|cw`), and writes an 8-bit RGB PNG with no metadata through a
+  temporary file and one rename. One line on stdout on success (`saved n=… source=usb|wifi|test-card
+  file=…`), one `snapshot:` line and exit codes 1–6 on failure; the README documents the contract.
+  The pixels match the page's own Save PNG, pinned by a test. ADR 0004 records the decision.
+- The screen error message on the WebSocket carries a `kind` (`no_link`, `ssh`, `firmware`, …)
+  beside its text.
+
 ### Changed
 
+- The frame route and the rules allow the snapshot command beside the page; a frame still never
+  reaches the disk from the server, only from the command, at the path the user names.
 - Documentation: troubleshooting covers a tablet that moved to another network (another Wi-Fi or a
   separate VLAN), which the search cannot see; firmware 3.29.1.0 noted (a new SSH host key, the
   same Wi-Fi unit file, Screen and Copy menu checked by eye); the roadmap lists finding a tablet on
@@ -15,6 +31,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Security
 
+- `inkboard snapshot` refuses an output file inside a git work tree, and `.gitignore` now ignores
+  every PNG outside `docs/images/` and the command's temporary file, so a picture of the tablet is
+  not committed by accident.
 - `opentelemetry-api` (pulled in by FastAPI) locked at 1.45.2, which fixes GHSA-mf5v-w3w3-f6cg
   (denial of service through quadratic-time `traceparent` parsing).
 
@@ -48,5 +67,6 @@ The first public release.
 - **Quality gates in CI:** Ruff, mypy, pytest with a 98% coverage floor on Linux and Windows,
   Bandit, pip-audit with a hashed lock audit, osv-scanner, gitleaks, CodeQL and Dependabot.
 
-[Unreleased]: https://github.com/xanthar/ReMarkable-InkBoard/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/xanthar/ReMarkable-InkBoard/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/xanthar/ReMarkable-InkBoard/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/xanthar/ReMarkable-InkBoard/releases/tag/v0.1.0

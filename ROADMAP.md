@@ -5,6 +5,14 @@ reviews them or turns them into Mermaid, text or code. Drawing an idea is often 
 describing it. This file lists what is done, what comes next, and what was deliberately left out,
 with the reason.
 
+## Done (0.2.0)
+
+- **An agent pulls the picture itself:** `inkboard snapshot --out FILE` saves the Screen view as a
+  PNG from a running `serve`, with the same pixels as the page's Save PNG (pinned by a test), the
+  menu left out and a landscape page turned upright; one line and an exit code tell a script or an
+  agent what happened. It is a client of `serve`'s own WebSocket, and encodes the PNG itself with
+  the standard library, so the server gained no image library and no new route (ADR 0004).
+
 ## Done (0.1.0)
 
 - **Live strokes (Sketch):** pen strokes in the browser as you draw, the line width following
@@ -19,13 +27,11 @@ with the reason.
 
 ## Next
 
-### An agent pulls the picture itself
+### What changed between two pulls
 
-An agent fetches the current page as an image without copy and paste: an MCP server tool or an
-`inkboard snapshot` command. It renders on the server, which needs an image library, and it must
-keep the localhost-only and no-handwriting-in-logs rules. The image must match the page's export
-([docs/architecture.md](docs/architecture.md), "Image export"); a reference PNG of the sample
-recording, saved from the page, can pin that.
+An agent that pulls the page again compares the new picture with the last one by eye. A pixel
+difference (what was added, what was erased) would make that exact. Deferred until a real change
+is missed by eye.
 
 ## Later
 

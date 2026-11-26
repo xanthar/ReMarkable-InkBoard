@@ -3,7 +3,7 @@
 inkboard is a small Python service (FastAPI, run by uvicorn) and one static page. The service reads
 the reMarkable 2's pen over SSH, turns the raw input records into strokes, and sends them to the
 page over a WebSocket; on demand it also reads one frame of the tablet's screen and serves it to
-the page. This document describes how the pieces fit, the exact export formats, and the rules the
+the page, or to the `inkboard snapshot` command, which saves it as a PNG for an agent. This document describes how the pieces fit, the exact export formats, and the rules the
 code keeps. The decisions behind them are in [docs/adr/](adr/).
 
 ## Data flow
@@ -28,15 +28,24 @@ rM2 /dev/input/event1 --ssh [-o HostName=<ip> -o HostKeyAlias=remarkable
                              image export: Copy image / Save PNG, drawn again off-screen)
 ReplaySource (recorded file) is the drop-in for offline use and tests.
 
-Screen view (only while a page shows it):
+Screen view (only while a client shows it: a page, or the snapshot command):
   Hub pen down / up + reconnect -> ScreenService (asyncio): pen-up + 0.5 s, Refresh, subscribe,
        view turn -> one grab at a time in a worker thread
   -> SshGrabber: ssh [address options of link.current] remarkable
                  "<firmware gate>; dd frame from /proc/<xochitl>/mem | gzip -1"
   -> decode: size + alpha check, BGRA -> RGBA, menu layout from the tablet's own icons
-  -> WebSocket "screen ready n" -> page fetches GET /api/v1/screen/frame (raw RGBA, no-store)
+  -> WebSocket "screen updating", then "screen ready n" or "screen error" (kind + detail), to
+     every client -> page fetches GET /api/v1/screen/frame (raw RGBA, no-store)
 TestCardGrabber (synthetic frame) stands in for the tablet in replay mode and tests.
+
+inkboard snapshot --out FILE (ADR 0004), a client of a running serve:
+  WebSocket with the page's origin -> "screen on" -> waits for an "updating" that reached it, then
+  "ready n" (a ready without one: one "refresh") -> GET /api/v1/screen/frame once -> "screen off",
+  close -> menu painted white, landscape turned clockwise -> RGB PNG, temp file + rename -> FILE
 ```
+
+The `kind` on a screen error is one of the fixed `ScreenError` identifiers: `no_link`, `timeout`,
+`ssh`, `ssh_missing`, `firmware`, `no_xochitl`, `no_map`, `read`, `size`, `not_image`.
 
 ## Modules
 
@@ -52,7 +61,8 @@ TestCardGrabber (synthetic frame) stands in for the tablet in replay mode and te
 | `services/discovery.py` | the search: physical subnets (PowerShell), the neighbour cache (`arp -a`), UDP touch, VPN check, `SearchResult` texts |
 | `services/hub.py` | page state, the wire protocol (pydantic models; client messages `clear` and `screen`), fan-out; pen and reconnect hooks for the Screen view |
 | `services/screen.py` | the Screen view: remote command and firmware gate, `SshGrabber`, frame check and decode, menu `LAYOUTS` with the icon masks, `TestCardGrabber`, `ScreenService` (when to grab) |
-| `services/probe.py`, `cli.py` | `probe` measurements; the `serve`, `demo`, `record` and `probe` commands |
+| `services/pull.py` | `inkboard snapshot`: the WebSocket client, the frame fetch and its checks, menu paint, the clockwise turn, the PNG encoder (standard library), the atomic write, the exit codes |
+| `services/probe.py`, `cli.py` | `probe` measurements; the `serve`, `snapshot`, `demo`, `record` and `probe` commands |
 | `app.py` | `create_app()`, security middleware, the WebSocket, the frame route, static files |
 | `static/app.js` | the page: Sketch and Screen boards, the stroke model, one drawing path for the screen and the image export, frame fetch and drawing, Vertical/Horizontal view, Copy image / Save PNG per board, Copy menu, status chip, Clear |
 | `scripts/tablet_backup.py` | the full verified tablet backup and its one-file restore test (runbook D8); not part of the package |
@@ -65,8 +75,10 @@ The tablet is in **portrait** or **landscape** mode (reMarkable's own words); th
 stored as `inkboard.board`; the view and the Copy menu choice are `inkboard.view` and
 `inkboard.copyMenu` in the browser's local storage). The tablet's screen image is a **frame** in
 code (`frame*` names); in `app.js`, `screen` is the Sketch drawing target and keeps that meaning.
-The WebSocket message `snapshot` is the full page state sent on connect; what a user hands to an
-agent is the **image export** (the buttons **Copy image** and **Save PNG**).
+The WebSocket message `snapshot` is the full page state sent on connect; the **command**
+`inkboard snapshot` is something else: it saves the Screen view as a PNG (module `pull.py`, so the
+two never share a name in code). What a user hands to an agent is the **image export** (the buttons
+**Copy image** and **Save PNG**, or the command).
 
 ## Image export
 
@@ -105,6 +117,16 @@ The frame as the tablet shows it. The numbers live in `services/screen.py` (`FRA
 | Layouts | `portrait-open`, `portrait-closed`, `landscape-open`, `landscape-closed`, told apart by 40 × 40 icon masks (round toolbar button, close X) at fixed boxes; right-handed toolbar |
 | File name | `inkboard-screen-YYYY-MM-DD-HHMMSS.png`, local time |
 
+### The snapshot command
+
+`inkboard snapshot` writes the same pixels as the page's Screen export, with two differences: the
+menu is always painted white (there is no Copy menu option), and the turn follows the tablet's
+layout instead of the page's view (`--turn auto`: a `landscape-*` layout is turned clockwise, an
+`unknown` one is not; `--turn none|cw` overrides). The file is an 8-bit RGB PNG (no alpha; every
+frame pixel is opaque) with only IHDR, IDAT and IEND, written where `--out` says.
+`tests/test_pull.py` pins the SHA-256 of the page's own Save PNG of the replay test card, so a
+change on either side that alters the pixels fails a test.
+
 ## Rules the code keeps
 
 These hold for every change; a change that needs to break one is a design decision with its own
@@ -139,17 +161,21 @@ ADR.
 - **Static content types are pinned** in `app.py`: Windows can map `.js` to `text/plain`, and with
   `nosniff` the browser then refuses the script.
 - **The Sketch export is made in the page**, and the page never logs strokes, blobs or image data;
-  a failure shows the error name only.
+  a failure shows the error name only. The Screen export is made in the page or in the snapshot
+  command, never in the server; the command never logs, and an unexpected failure prints its type
+  name only.
 - **The screen is only read.** One grab is one SSH run whose remote text is fixed in code plus two
   integers (no `"`, `\`, `%` or newline, so Windows argv quoting cannot change it); the firmware
   gate runs on the tablet before any memory is read; nothing is installed on the tablet for it.
 - **A frame is handwriting-grade**: never logged (`frame`, `rgba`, `bgra`, `raw` are dropped keys;
-  tracebacks are plain, without locals), never written to disk by the server, dropped when the last
-  page leaves the Screen view, and served only by `GET /api/v1/screen/frame` with
+  tracebacks are plain, without locals), never written to disk by the server (only the snapshot
+  command writes one, at the path the user names and never inside a git work tree), dropped when
+  the last client leaves the Screen view, and served only by `GET /api/v1/screen/frame` with
   `Cache-Control: no-store`, `Cross-Origin-Resource-Policy: same-origin`, 403 when Fetch Metadata
   names another site or a non-fetch destination (a request without those headers, such as `curl`,
-  is allowed, since only this machine can reach the port), and no side effect: a grab starts only
-  from the Origin-checked WebSocket.
+  is allowed, since only this machine can reach the port; the snapshot command fetches that way),
+  and no side effect: a grab starts only from the Origin-checked WebSocket, used by the page and the
+  command (ADR 0004).
 - **Tracebacks stay plain, by requirement.** When `rich` is installed (it is, through the dev
   tools), structlog's default console renderer prints every local variable in a traceback, so a
   frame or a list of points held in a local would reach the console. `core/logging.py` therefore

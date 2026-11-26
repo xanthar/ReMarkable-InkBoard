@@ -28,9 +28,11 @@ reMarkable 2. The design keeps both on the user's own PC.
   the same browser can neither read the strokes nor start a screen read.
 - **Handwriting is never logged.** Coordinates, pressure and screen frames are dropped from the
   logs, and errors print without the values of local variables; the logs do carry network
-  addresses and ssh's own messages. A screen frame is held in memory only while a page shows the
-  Screen view, never written to disk by the server, and served with `no-store` to the page's own
-  same-origin request only, with no side effect.
+  addresses and ssh's own messages. A screen frame is held in memory only while a page or the
+  `inkboard snapshot` command shows the Screen view, never written to disk by the server, and
+  served with `no-store`, with no side effect, to the page's own same-origin request or to the
+  command. The command writes the frame as a PNG only at the path the user names, never inside a
+  git work tree, and prints nothing of the image (ADR 0004).
 - **Nothing is installed on the tablet for the pen or the screen.** inkboard only reads; every
   remote command is fixed text built in code from validated settings. Programs are started with
   an argument list, never with text for a shell to parse; the only local commands are two fixed
@@ -52,7 +54,13 @@ reMarkable 2. The design keeps both on the user's own PC.
   process can connect to the page. For the same reason there is no CSRF protection or rate
   limiting: the page has no forms, and its only actions (Clear, and switching the Screen view on,
   off or refreshing it) are WebSocket messages behind the Origin check. Serving beyond loopback
-  would need all three.
+  would need all three. The Origin check keeps other websites out; it is not a login, since a local
+  program can send any Origin. Such a program can also start a screen read and fetch the frame,
+  exactly as `inkboard snapshot` does.
+- **A snapshot is a file.** `inkboard snapshot` writes the tablet's screen, handwriting and
+  whatever else is open on it, to the file you name. It stays there until you delete it, and an
+  agent that reads it may keep a copy in its own history. A failed snapshot's message can include
+  ssh's last line, which may name the tablet's address.
 - **Copy image uses the system clipboard.** With clipboard history on (on Windows, Win+V), every
   copied image stays in that history until you clear it, including Screen images, which can show
   other notebooks. The page never reads the clipboard.

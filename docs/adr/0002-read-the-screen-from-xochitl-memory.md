@@ -1,6 +1,7 @@
 # ADR 0002 — Read the tablet's screen from xochitl's memory over SSH, read-only
 
-- **Status:** accepted
+- **Status:** accepted; amended by [ADR 0004](0004-a-command-pulls-the-screen.md) (the
+  `inkboard snapshot` command also reads the Screen view)
 - **Date:** 2026-10-26
 - **Decided by:** the maintainer
 

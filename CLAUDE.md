@@ -2,8 +2,9 @@
 
 inkboard is a live drawing board for the reMarkable 2: it reads the pen over SSH and draws every
 stroke in a browser page on the user's PC (**Sketch**), and shows the tablet's own screen a moment
-after the pen lifts (**Screen**), over the USB cable or the tablet's Wi-Fi. One user, localhost
-only. This file tells a contributor, or an AI coding agent working for one, how to change it
+after the pen lifts (**Screen**), over the USB cable or the tablet's Wi-Fi. `inkboard snapshot`
+saves that screen as a PNG, so an agent can fetch the page itself. One user, localhost only. This
+file tells a contributor, or an AI coding agent working for one, how to change it
 safely.
 
 ## Where things are
@@ -12,7 +13,7 @@ safely.
 |---|---|
 | [README.md](README.md) | what it does, setup, settings, troubleshooting |
 | [docs/architecture.md](docs/architecture.md) | data flow, modules, export formats, **the rules the code keeps** |
-| [docs/adr/](docs/adr/) | the decisions behind the pen stream, the screen read and the USB or Wi-Fi link |
+| [docs/adr/](docs/adr/) | the decisions behind the pen stream, the screen read, the USB or Wi-Fi link and the snapshot command |
 | [docs/operations/device-setup.md](docs/operations/device-setup.md) | the tablet runbook (sections D0–D8; messages in the code cite them) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | the gates, the test-data rules, the Sketch-unchanged check |
 | [SECURITY.md](SECURITY.md) | the threat model and how to report a problem |
@@ -27,7 +28,8 @@ safely.
 3. **Run the gates** (CONTRIBUTING.md) before every commit. They are the same checks CI runs;
    coverage stays at or above 98%.
 4. **Keep the rules** in `docs/architecture.md`: the page binds to 127.0.0.1 only, no handwriting
-   or frame ever reaches a log or the disk, the SSH argv is built in code from validated settings,
+   or frame ever reaches a log, a frame reaches the disk only through `inkboard snapshot` at the
+   path the user names, the SSH argv is built in code from validated settings,
    every address connection checks the host key, the network search stays opt-in and bounded, the
    screen is only read. A change that needs to break one is a design decision: write an ADR.
 5. **Test honestly.** Every refusal test has its control. Test data uses example values only (MAC
@@ -71,6 +73,10 @@ safely.
   Sketch pixel hashes only after the replay has finished.
 - **Importing `services/screen.py` costs about 0.8 s**: `tests/fake_device.py` imports it only in
   its screen modes, because `read_raw`'s test gives a pen-mode child one second to start.
+- **`snapshot` the command is not `snapshot` the WebSocket message** (the full page state sent on
+  connect). The command's code is `services/pull.py`.
+- **Restart `serve` after updating inkboard.** A `serve` started from older code sends no `kind`
+  on a screen error, and `inkboard snapshot` then reports every grab error as exit 5.
 - **`probe` and `record` use the `remarkable` host entry as written**, which is the USB cable; only
   `serve` chooses between USB and Wi-Fi.
 - **A firmware update changes the tablet's SSH host key** (seen from 3.24 to 3.29 and from

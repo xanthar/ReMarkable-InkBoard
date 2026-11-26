@@ -108,6 +108,21 @@ change, the same run must report `same: true` in both views.
 Take baselines only after the replay has finished: a page that connects while the replay is still
 running can receive a few points twice.
 
+## Checking that the Screen export matches
+
+`tests/test_pull.py` pins `PAGE_TEST_CARD_RGBA_SHA256`, the SHA-256 of the RGBA pixels of the
+page's own Save PNG of the replay test card. It ties `inkboard snapshot` to the page: a change on
+either side that alters the pixels fails the test. To take the value again (after an intended
+change to the test card, the menu paint or the page's Screen export):
+
+1. Start a fresh replay server, without `--loop`, so the test card is frame 1:
+   `uv run inkboard serve --source replay --replay tests\fixtures\rm2-sample.bin --speed 0 --port 8010`
+2. Open <http://127.0.0.1:8010>, wait for "11 strokes", switch to **Screen**, keep **Vertical**
+   and leave **Copy menu** unticked.
+3. Run the snippet above in the browser console without its three `localStorage` lines, and with
+   `prefix: h.slice(0, 8)` changed to `hash: h`. It must report `w: 1404, h: 1872`.
+4. Put the hash in `PAGE_TEST_CARD_RGBA_SHA256` and say in the pull request why it changed.
+
 ## Supporting a new firmware version
 
 The Screen view reads the screen at a measured memory offset and refuses firmware it was not
@@ -135,6 +150,7 @@ cable so the chip shows no network address, and draw nothing personal.
 ## Architecture and decisions
 
 [docs/architecture.md](docs/architecture.md) describes how the pieces fit, the exact image export
-format and the rules the code keeps (localhost only, no handwriting in logs, the SSH argv built
-from validated settings). [docs/adr/](docs/adr/) records the decisions behind them. If you work
+formats (the page's and `inkboard snapshot`'s) and the rules the code keeps (localhost only, no
+handwriting in logs, a frame on disk only where the user names it, the SSH argv built from
+validated settings). [docs/adr/](docs/adr/) records the decisions behind them. If you work
 with an AI coding agent, [CLAUDE.md](CLAUDE.md) gives it the same contract.

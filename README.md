@@ -26,7 +26,8 @@ not, and it switches between the two by itself.
 
 - **Sketch an idea and hand it to an AI.** Draw a flow, a rough architecture or a screen layout,
   press **Copy image**, paste it into the chat and ask for a review, a Mermaid diagram, a written
-  description or code.
+  description or code. An agent that can run commands can fetch the page itself with
+  `inkboard snapshot`, as often as you redraw.
 - **A whiteboard for calls.** The page is an ordinary browser tab, so you can share it in a video
   call and draw on the tablet while you talk; the others see each stroke as you make it.
 - **The tablet on a bigger screen.** The Screen view shows the tablet as it is, with erasing,
@@ -52,7 +53,7 @@ Then open <http://127.0.0.1:8000>. Sketch draws a circle, a square and the word 
 Screen shows a synthetic test card. To connect your own tablet, the one-time setup over the USB
 cable is in [Setting up the tablet](#setting-up-the-tablet).
 
-**Project status.** inkboard 0.1.0 is built and used on Windows with a reMarkable 2 on firmware
+**Project status.** inkboard 0.2.0 is built and used on Windows with a reMarkable 2 on firmware
 3.24 and 3.29. The code is plain Python and its tests run on Linux and Windows, but live use on
 Linux and macOS has not been tried yet, and the Wi-Fi search is available on Windows only. The
 reMarkable 1 and the reMarkable Paper Pro have not been tested. Reports from other setups and pull
@@ -75,6 +76,7 @@ requests are welcome (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 - [The page](#the-page)
 - [USB and Wi-Fi](#usb-and-wi-fi)
 - [Commands](#commands)
+- [`inkboard snapshot` for scripts and agents](#inkboard-snapshot-for-scripts-and-agents)
 - [Settings](#settings)
 - [After a tablet firmware update](#after-a-tablet-firmware-update)
 - [Removing inkboard](#removing-inkboard)
@@ -94,12 +96,18 @@ The page has two views of the tablet, and you switch between them with **Sketch 
   and page turns are not part of it.
 - **Screen** shows the tablet's own screen image a second or two after you lift the pen, exactly
   as the tablet shows it: erasing, selections, typed text and the menus included. It never reads
-  the screen while you are writing, so the tablet's own ink stays smooth.
+  the screen while you are writing, so the tablet's own ink stays smooth. (`inkboard snapshot`
+  reads it at once when it runs, pen down or not.)
 
 From either view, **Copy image** puts what is showing on the clipboard as a PNG that you can paste
 straight into an AI chat, and **Save PNG** downloads the same image. Both images have the tablet's
 screen size (1404 × 1872 pixels in portrait, 1872 × 1404 in landscape) and follow the
 **Vertical / Horizontal** view you have chosen (see [The page](#the-page)).
+
+Without the page, `inkboard snapshot --out FILE` saves the Screen view as a PNG from a running
+`inkboard serve`: the same pixels as the page's Save PNG, the menu left out, a landscape page
+turned upright. It is meant for an AI agent that runs commands (see
+[`inkboard snapshot` for scripts and agents](#inkboard-snapshot-for-scripts-and-agents)).
 
 The status chip at the top tells you how the page is connected, for example **Connected · USB**
 or **Connected · Wi-Fi 192.168.1.42**, and, when something is wrong, what was tried and why it
@@ -119,7 +127,8 @@ tablet only through the SSH client that is already on your PC.
    When the pen has rested, inkboard runs one short SSH command that first checks the firmware
    version and then copies that one frame out of the app's memory, compressed with `gzip`. The
    frame is checked for its exact size and full opacity before it is used, so a wrong read never
-   reaches the page.
+   reaches the page. `inkboard snapshot` is a second client of the same server: it asks for the
+   screen the way the page does and turns the frame into a PNG file itself.
 3. **The link.** Before every connection inkboard decides how to reach the tablet: over the USB
    cable when the PC has the cable network, otherwise over Wi-Fi at an address it remembers, an
    address you list, or one it finds by searching your local network for the tablet's network
@@ -143,16 +152,20 @@ nor start a screen read.
 **Handwriting is never logged.** The logs carry counts, identifiers, network addresses and ssh's
 own messages, never handwriting: coordinates, pressure and screen frames are removed before
 anything is written, and errors are printed without the values of local variables. A screen
-frame is held in memory only while a page shows the Screen view, is never written to disk by the
-server, and is served with `no-store` to the page's own same-origin request only. Handwriting
-leaves your PC only when you press **Copy image** or **Save PNG**.
+frame is held in memory only while a page or `inkboard snapshot` shows the Screen view, is never
+written to disk by the server, and is served with `no-store` to the page's own same-origin request
+or to the command. Handwriting leaves the page only when you press **Copy image** or **Save PNG**,
+or when you run `inkboard snapshot`, which writes the PNG only to the file you name (never inside
+a git work tree) and prints nothing of the image. An agent that then reads that file may keep a
+copy in its own history.
 
 > **Note:** a screen image shows whatever is open on the tablet, including other notebooks and the
 > file library with its thumbnails. Keep that in mind before you copy a screen image into a chat.
 
 **Copy image uses the system clipboard.** If clipboard history is on (on Windows, Win+V), every
 copied image stays in that history until you clear it, including Screen images. Save PNG writes to
-your Downloads folder. The page never reads the clipboard.
+your Downloads folder; `inkboard snapshot` writes only to its `--out` file. The page never reads
+the clipboard.
 
 **Nothing is installed on the tablet to draw or to read the screen.** inkboard only reads: the
 pen device and one frame of the app's memory. Every remote command is fixed text built in code
@@ -379,7 +392,9 @@ need one: the tablet reports its Wi-Fi address while it is connected, and inkboa
 4. Pick **Sketch** (instant, pen strokes only) or **Screen** (the tablet's own screen, a second
    or two behind), and draw.
 5. To hand the drawing to an AI, press **Copy image** and paste it into the chat. In Claude Code
-   in a Windows terminal, paste an image with **Alt+V**, because Ctrl+V pastes text only.
+   in a Windows terminal, paste an image with **Alt+V**, because Ctrl+V pastes text only. Or let
+   an agent that runs commands fetch it with `inkboard snapshot` while `serve` runs (see
+   [`inkboard snapshot` for scripts and agents](#inkboard-snapshot-for-scripts-and-agents)).
 6. Stop the server with Ctrl+C.
 
 When the tablet goes to sleep, the chip turns to **Down** and says why ("connection lost", then
@@ -421,7 +436,8 @@ In **Screen**:
 
 - A new picture arrives a second or two after the pen lifts, never while you are writing.
   **Refresh** fetches one now, which you need after a page turn, a menu or anything else done with
-  a finger, since fingers are not part of the pen stream.
+  a finger, since fingers are not part of the pen stream. When `inkboard snapshot` runs, the page
+  shows the picture it fetched as well.
 - The text next to the chip says **Updating…**, the picture's time, or the error. After an error
   the last picture stays, dimmed.
 - **Copy menu** is off by default: Copy image and Save PNG then paint the tablet's toolbar white,
@@ -465,6 +481,7 @@ nothing are always named on the chip; inkboard never cuts a search short without
 |---|---|
 | `uv run inkboard serve` | the live page on `http://127.0.0.1:8000`; `--port` changes the port, `--event-size` the record size |
 | `uv run inkboard serve --source replay --replay FILE` | plays a recording instead of the tablet (`--speed`, `--loop`); Screen shows a synthetic test card |
+| `uv run inkboard snapshot --out FILE` | saves the tablet's screen as a PNG from a running `serve` (`--port`, `--timeout`, `--turn`); see below |
 | `uv run inkboard record --seconds 30` | saves the raw pen stream (15 s by default) to `recordings/` (ignored by git), or to `--out FILE`, for a test or a bug report |
 | `uv run inkboard probe` | finds the pen device, the record size and the orientation (`--wait`, `--tap-timeout`) |
 | `uv run inkboard demo --out FILE` | writes a synthetic recording (`--event-size`) |
@@ -476,6 +493,55 @@ cable; only `serve` chooses between USB and Wi-Fi.
 While `serve` runs, `http://127.0.0.1:<port>/api/v1/health/live` answers 200, and
 `/api/v1/health/ready` answers 200 with the link in use while the pen stream is connected, else
 503 with the reason. A script or an agent can use them to check that the board is up.
+
+## `inkboard snapshot` for scripts and agents
+
+`inkboard snapshot --out FILE` asks a running `inkboard serve` for a picture of the tablet's
+screen grabbed after the command started, and writes it to FILE as a PNG. Run it from the
+repository folder, so that `.env` (and `INKBOARD_PORT`) applies; `--port` overrides.
+
+```powershell
+uv run inkboard snapshot --out $env:TEMP\page.png
+```
+
+- **The image** is what the page's Screen view saves with Copy menu off: the tablet's own pixels at
+  1404 × 1872, the menu painted white, as an 8-bit RGB PNG with no metadata. A landscape page is
+  turned clockwise to 1872 × 1404 (`--turn auto`, the default; `--turn none` or `--turn cw`
+  decide it yourself). When the layout is not recognised (a pop-up, the file library, the
+  left-handed toolbar), the menu stays in and nothing is turned.
+- **The file** is written through a temporary file beside it and one rename, so a reader never
+  sees half an image. A FILE inside a git work tree is refused: the picture is handwriting.
+- **Success** prints one line on stdout, in UTF-8, with the file last:
+
+  ```
+  saved n=12 at=2026-11-26T21:49:05+01:00 layout=landscape-open turn=cw source=wifi file=C:\path\to\page.png
+  ```
+
+  `n` is the frame number in this `serve`, `at` the local time it was grabbed, `layout` one of
+  `portrait-open`, `portrait-closed`, `landscape-open`, `landscape-closed` or `unknown`, `source`
+  `usb`, `wifi` or `test-card`. **`test-card` means a replay server is running, not the tablet.**
+  The line matches this regular expression:
+
+  ```
+  ^saved n=(\d+) at=(\S+) layout=(\S+) turn=(none|cw) source=(usb|wifi|test-card) file=(.+)$
+  ```
+
+- **Failure** prints one line starting `snapshot:` on stderr, nothing on stdout, and exits with:
+
+  | Exit | Meaning | What to do |
+  |---|---|---|
+  | 0 | saved | |
+  | 1 | the file could not be written, or an unexpected error (its type only) | check the path |
+  | 2 | usage: a bad option, FILE is a folder, or FILE is inside a git work tree | fix the command |
+  | 3 | `serve` is not running on that port, or it closed the connection | start `uv run inkboard serve`, or run snapshot again |
+  | 4 | the tablet is not connected or not answering | wake the tablet, check the cable or the Wi-Fi |
+  | 5 | the screen read failed (firmware, a frame that does not check out) | the message says why; see [Troubleshooting](#troubleshooting) |
+  | 6 | no picture within `--timeout` seconds (30 by default) | wake the tablet and run it again |
+
+- **After updating inkboard, restart `serve`.** A `serve` started before 0.2.0 does not say why a
+  screen read failed, and the command then reports exit 5 for a sleeping tablet too.
+- Every open page shows the picture the command fetched. The command reads the screen at once,
+  even while the pen is down.
 
 ## Settings
 
@@ -586,7 +652,7 @@ enhanced is tested there. Each row below is taken from that project's own README
 
 | Project | What you see | On the tablet | Getting an image out |
 |---|---|---|---|
-| **inkboard** | live pen strokes, and the tablet's own screen after the pen lifts | nothing installed | Copy image to the clipboard, Save PNG |
+| **inkboard** | live pen strokes, and the tablet's own screen after the pen lifts | nothing installed | Copy image to the clipboard, Save PNG, `inkboard snapshot` to a file |
 | [pipes and paper enhanced](https://github.com/Pyrrhu5/pipes-and-paper-enhanced) | live pen strokes in a browser (Linux, macOS) | nothing installed | not described |
 | [goMarkableStream](https://github.com/owulveryck/goMarkableStream) | a live stream of the screen in a browser | a server binary that runs on the tablet | not described |
 | [reStream](https://github.com/rien/reStream) | live screen video in a window, recording, a virtual webcam | a small `restream` binary | video recording |
@@ -631,6 +697,7 @@ tests fail on any real network use or child process.
 | `src/inkboard/services/link.py`, `discovery.py` | choosing USB or Wi-Fi, the cable watcher and the network search |
 | `src/inkboard/services/screen.py` | the screen read, its checks and the toolbar recognition |
 | `src/inkboard/services/hub.py` | page state and the WebSocket protocol |
+| `src/inkboard/services/pull.py` | `inkboard snapshot`: fetching a frame from `serve`, the PNG and the file |
 | `src/inkboard/app.py`, `cli.py` | the web app with its security headers, and the commands |
 | `src/inkboard/static/` | the page: one HTML file, one script and one stylesheet, nothing loaded from the internet |
 | `scripts/tablet_backup.py` | the verified tablet backup |
@@ -643,8 +710,8 @@ tests fail on any real network use or child process.
   the rules the code keeps.
 - [`docs/operations/device-setup.md`](docs/operations/device-setup.md): the full tablet runbook,
   the measured values, the backup, the complete troubleshooting table and the rollback.
-- [`docs/adr/`](docs/adr/): the decisions behind the pen stream, the screen read and the USB or
-  Wi-Fi link.
+- [`docs/adr/`](docs/adr/): the decisions behind the pen stream, the screen read, the USB or
+  Wi-Fi link and the snapshot command.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md),
   [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md): how to contribute, report a problem, and take part.
 - [`CHANGELOG.md`](CHANGELOG.md): what changed. [`ROADMAP.md`](ROADMAP.md): what comes next, what

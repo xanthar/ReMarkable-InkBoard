@@ -180,6 +180,15 @@ def test_snapshot_writes_the_current_screen_as_a_png(tmp_path: Path, capfd: pyte
     assert [p.name for p in tmp_path.iterdir()] == ["screen.png"]  # no temp file left
 
 
+def test_the_readme_documents_the_same_line() -> None:
+    readme = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
+    documented = re.search(r"^\s*(\^saved .*\$)$", readme, re.MULTILINE)
+    example = re.search(r"^\s*(saved n=\d+ .*)$", readme, re.MULTILINE)
+    assert documented is not None and example is not None
+    assert documented[1] == re.sub(r"\?P<\w+>", "", LINE.pattern)  # the README is the contract
+    assert LINE.match(example[1])
+
+
 def test_the_parent_folder_is_created(tmp_path: Path) -> None:
     out = tmp_path / "new" / "deeper" / "screen.png"
     with serving() as (port, _):
